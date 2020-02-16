@@ -1,0 +1,19 @@
+{
+  "name": "kiss92-bot",
+  "version": "1.0.0",
+  "description": "A bot that streams from the Radio Station Kiss92 to a voice channel on discord",
+  "main": "bot.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Garlicvideos",
+  "license": "GPL-3.0-or-later",
+  "dependencies": {
+    "aac": "^0.1.3",
+    "av": "^0.4.9",
+    "discord.js": "^11.5.1",
+    "moment": "^2.24.0",
+    "opusscript": "0.0.7",
+    "xml-js": "^1.6.11"
+  }
+}

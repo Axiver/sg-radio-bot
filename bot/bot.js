@@ -21,12 +21,22 @@ function str_pad_left(string,pad,length) {
     return (new Array(length+1).join(pad)+string).slice(-length);
 }
 
+//Format strings so that only the first letter is Capitalised
+function capitalizeFirstLetter(str) {
+	let string = str.toLowerCase();
+  	let result = string[0].toUpperCase() + string.slice(1);
+  	return result;
+}
+
 //Starts the radio stream
 function playStream(message) {
 	//Find the voice channel
-	let channel = client.channels.get("658685417956179977");
+	if (!message.member.voiceChannel) {
+		message.channel.send("You need to be in a voice channel!");
+		return;
+	}
 	//Join the voice channel
-	channel.join().then(connection => {
+	message.member.voiceChannel.join().then(connection => {
 		message.channel.send("Connected to voice channel!");
 		//Create broadcast
 		let broadcast = client.createVoiceBroadcast();
@@ -40,11 +50,14 @@ function playStream(message) {
 }
 
 //Ends the radio stream
-function endStream(message) {
+function endStream(message, client) {
 	//Find the voice channel
-	let channel = client.channels.get("658685417956179977");
+	if (!message.guild.me.voiceChannel) {
+		message.channel.send("Radio stream was never started");
+		return;
+	}
 	//Leave the voice channel
-	channel.leave();
+	message.guild.me.voiceChannel.leave();
 	message.channel.send("Radio stream stopped.");
 }
 
@@ -91,12 +104,12 @@ function getSongInfo(message) {
 					description: "Song Info",
 					fields: [{
 						name: "Song Title",
-						value: songTitle,
+						value: capitalizeFirstLetter(songTitle),
 						inline: true
 					},
 					{
 						name: "Artist",
-						value: songArtist,
+						value: capitalizeFirstLetter(songArtist),
 						inline: true
 					},
 					{
@@ -132,7 +145,7 @@ client.on("message", async message => {
 			playStream(message);
 		} else if (command === "!stop") {
 			//Disconnect from the voice channel
-			endStream(message);
+			endStream(message, client);
 		} else if (command === "!song") {
 			//Get song info
 			await getSongInfo(message);

@@ -7,9 +7,17 @@ var config = require("./config.json");
 var moment = require("moment");
 
 //Kiss92 stream URL
-var radioStream = "http://playerservices.streamtheworld.com/api/livestream-redirect/KISS_92AAC.aac?tdtok=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiIsImtpZCI6ImZTeXA4In0.eyJpc3MiOiJ0aXNydiIsInN1YiI6IjIxMDY0IiwiaWF0IjoxNTgxNTE0MTQ4LCJ0ZC1yZWciOmZhbHNlfQ.k8L5xHd8S01FJ9a9QVxd8A48Eli9O_V9N89aiKkli48";
-var infoStream = "https://np.tritondigital.com/public/nowplaying?mountName=KISS_92AAC&numberToFetch=1&eventType=track&request.preventCache=1581742131922";
-var albumArtInfo = "https://feed.tunein.com/profiles/s180099/nowPlaying?token=eyJwIjpmYWxzZSwidCI6IjIwMjAtMDItMTdUMTA6MjE6NDMuNzI2MDE0N1oifQ&itemToken=BgUFAAEAAQABAAEAb28Bg78CAAEFAAA&formats=mp3,aac,ogg,flash,html,hls&serial=7ba551c5-cece-424f-aceb-1be5e3c5062c&partnerId=RadioTime&version=3.8&itemUrlScheme=secure&reqAttempt=1";
+var kiss92Stream = "http://playerservices.streamtheworld.com/api/livestream-redirect/KISS_92AAC.aac?tdtok=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiIsImtpZCI6ImZTeXA4In0.eyJpc3MiOiJ0aXNydiIsInN1YiI6IjIxMDY0IiwiaWF0IjoxNTgxNTE0MTQ4LCJ0ZC1yZWciOmZhbHNlfQ.k8L5xHd8S01FJ9a9QVxd8A48Eli9O_V9N89aiKkli48";
+var kiss92InfoStream = "https://np.tritondigital.com/public/nowplaying?mountName=KISS_92AAC&numberToFetch=1&eventType=track&request.preventCache=1581742131922";
+var kiss92SecondInfoStream = "https://feed.tunein.com/profiles/s180099/nowPlaying?token=eyJwIjpmYWxzZSwidCI6IjIwMjAtMDItMTdUMTA6MjE6NDMuNzI2MDE0N1oifQ&itemToken=BgUFAAEAAQABAAEAb28Bg78CAAEFAAA&formats=mp3,aac,ogg,flash,html,hls&serial=7ba551c5-cece-424f-aceb-1be5e3c5062c&partnerId=RadioTime&version=3.8&itemUrlScheme=secure&reqAttempt=1";
+
+//YES 933 stream URL
+var yes933Stream = "http://playerservices.streamtheworld.com/api/livestream-redirect/YES933_PREM.aac?tdtok=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiIsImtpZCI6ImZTeXA4In0.eyJpc3MiOiJ0aXNydiIsInN1YiI6IjIxMDY0IiwiaWF0IjoxNTgxOTQwNzg2LCJ0ZC1yZWciOmZhbHNlfQ.1hYK0m1_6eSKv_ZqT5uPmEboyuAEEQud0jOVemLBk_M";
+var yes933InfoStream = "https://np.tritondigital.com/public/nowplaying?mountName=YES933_PREM&numberToFetch=1&eventType=track&request.preventCache=1581742131922";
+var yes933SecondInfoStream = "https://feed.tunein.com/profiles/s25609/nowPlaying?token=eyJwIjpmYWxzZSwidCI6IjIwMjAtMDItMTdUMTA6MjE6NDMuNzI2MDE0N1oifQ&itemToken=BgUFAAEAAQABAAEAb28Bg78CAAEFAAA&formats=mp3,aac,ogg,flash,html,hls&serial=7ba551c5-cece-424f-aceb-1be5e3c5062c&partnerId=RadioTime&version=3.8&itemUrlScheme=secure&reqAttempt=1";
+
+//Misc vars
+var currentStation = "";
 
 //Boot discord bot
 client.on("ready", () => {
@@ -30,7 +38,7 @@ function capitalizeFirstLetter(str) {
 }
 
 //Starts the radio stream
-function playStream(message) {
+function playStream(message, stationStream) {
 	//Find the voice channel
 	if (!message.member.voiceChannel) {
 		message.channel.send("You need to be in a voice channel!");
@@ -42,7 +50,7 @@ function playStream(message) {
 		//Create broadcast
 		let broadcast = client.createVoiceBroadcast();
 		//Get stream from radio station
-		broadcast.playArbitraryInput(radioStream);
+		broadcast.playArbitraryInput(stationStream);
 		//Broadcast to every VC the bot is connected to
 		for (const connection of client.voiceConnections.values()) {
 		  	connection.playBroadcast(broadcast);
@@ -132,7 +140,7 @@ function splitSongInfo(songInfo) {
 function backupSongInfo(result) {
 	return new Promise(async (resolve, reject) => {
 		//Make request to TuneIn endpoint
-		let data = await requestURL(albumArtInfo);
+		let data = await requestURL(secondInfoStream);
 		data = JSON.parse(data);
 		//Get album art URL
 		result.albumArt = data.Secondary.Image;
@@ -225,9 +233,28 @@ client.on("message", async message => {
 		//Convert to lower case
 		message.content = message.content.toLowerCase();
 		let command = message.content;
-		if (command === "!play") {
-			//Initiate radio stream
-			playStream(message);
+		//Plays radio stream
+		if (command.startsWith("!play")) {
+			//Checks if theres a radio stream already playing
+			if (!currentStation) {
+				//The station user has selected
+				let station = command.split(" ")[1];
+				if (station == "kiss92") {
+					//Kiss92
+					let stream = kiss92Stream;
+				} else if (station == "933") {
+					//YES 933
+					let stream = yes933Stream;
+				} else {
+					//Station is not supported
+					message.channel.send("Radio station does not exist!");
+					return;
+				}
+				//Set current station
+				currentStation = station;
+				//Play selected radio stream
+				playStream(message, stream);
+			}
 		} else if (command === "!stop") {
 			//Disconnect from the voice channel
 			endStream(message, client);

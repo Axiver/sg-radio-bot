@@ -17,7 +17,7 @@ var yes933InfoStream = "https://np.tritondigital.com/public/nowplaying?mountName
 var yes933SecondInfoStream = "https://feed.tunein.com/profiles/s25609/nowPlaying?token=eyJwIjpmYWxzZSwidCI6IjIwMjAtMDItMTdUMTA6MjE6NDMuNzI2MDE0N1oifQ&itemToken=BgUFAAEAAQABAAEAb28Bg78CAAEFAAA&formats=mp3,aac,ogg,flash,html,hls&serial=7ba551c5-cece-424f-aceb-1be5e3c5062c&partnerId=RadioTime&version=3.8&itemUrlScheme=secure&reqAttempt=1";
 
 //Misc vars
-var currentStation = "";
+var currentStation = dispatcher = "";
 
 //Boot discord bot
 client.on("ready", () => {
@@ -39,22 +39,44 @@ function capitalizeFirstLetter(str) {
 
 //Starts the radio stream
 function playStream(message, stationStream) {
-	//Find the voice channel
-	if (!message.member.voiceChannel) {
-		message.channel.send("You need to be in a voice channel!");
-		return;
-	}
-	//Join the voice channel
-	message.member.voiceChannel.join().then(connection => {
-		message.channel.send("Connected to voice channel!");
-		//Create broadcast
-		let broadcast = client.createVoiceBroadcast();
-		//Get stream from radio station
-		broadcast.playArbitraryInput(stationStream);
-		//Broadcast to every VC the bot is connected to
-		for (const connection of client.voiceConnections.values()) {
-		  	connection.playBroadcast(broadcast);
+	return new Promise((resolve, reject) => {
+		//Find the voice channel
+		if (!message.member.voiceChannel) {
+			message.channel.send("You need to be in a voice channel!");
+			return;
 		}
+		//Join the voice channel
+		message.member.voiceChannel.join().then(connection => {
+			message.channel.send("Connected to voice channel!");
+			//Create broadcast
+			broadcast = client.createVoiceBroadcast();
+			//Get stream from radio station
+			dispatcher = broadcast.playArbitraryInput(stationStream);
+			//Broadcast to every VC the bot is connected to
+			for (const connection of client.voiceConnections.values()) {
+			  	connection.playBroadcast(dispatcher);
+			}
+			resolve();
+		});
+	});
+}
+
+//Switches from a radio station to another
+function switchStream(message, stationStream) {
+	return new Promise((resolve, reject) => {
+		//Leave the voice channel
+		message.guild.me.voiceChannel.leave();
+		message.member.voiceChannel.join().then(connection => {
+			//Create broadcast
+			broadcast = client.createVoiceBroadcast();
+			//Get stream from radio station
+			dispatcher = broadcast.playArbitraryInput(stationStream);
+			//Broadcast to every VC the bot is connected to
+			for (const connection of client.voiceConnections.values()) {
+			  	connection.playBroadcast(dispatcher);
+			}
+			resolve();
+		});
 	});
 }
 
@@ -67,6 +89,7 @@ function endStream(message, client) {
 	}
 	//Leave the voice channel
 	message.guild.me.voiceChannel.leave();
+	currentStation = null;
 	message.channel.send("Radio stream stopped.");
 }
 
@@ -235,25 +258,36 @@ client.on("message", async message => {
 		let command = message.content;
 		//Plays radio stream
 		if (command.startsWith("!play")) {
-			//Checks if theres a radio stream already playing
-			if (!currentStation) {
-				//The station user has selected
-				let station = command.split(" ")[1];
+			//The station user has selected
+			let station = command.split(" ")[1];
+			//Checks if the current station is the same as the one the user selected
+			if (currentStation !== station) {
 				if (station == "kiss92") {
 					//Kiss92
-					let stream = kiss92Stream;
-				} else if (station == "933") {
+					var stream = kiss92Stream;
+				} else if (station == "933" || station == "yes933") {
 					//YES 933
-					let stream = yes933Stream;
+					var stream = yes933Stream;
 				} else {
 					//Station is not supported
 					message.channel.send("Radio station does not exist!");
 					return;
 				}
-				//Set current station
-				currentStation = station;
-				//Play selected radio stream
-				playStream(message, stream);
+				//End current stream if the bot is playing songs
+				if (currentStation) {
+					await switchStream(message, stream);
+					message.channel.send("Switched over from " + capitalizeFirstLetter(currentStation) + " to " + capitalizeFirstLetter(station));
+					//Set current station
+					currentStation = station;
+					return;
+				} else {
+					//Play selected radio stream
+					await playStream(message, stream);
+					//Set current station
+					currentStation = station;
+				}
+			} else {
+				message.channel.send(capitalizeFirstLetter(station) + " is already playing!");
 			}
 		} else if (command === "!stop") {
 			//Disconnect from the voice channel

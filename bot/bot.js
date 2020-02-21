@@ -160,7 +160,7 @@ function splitSongInfo(songInfo) {
 }
 
 //Finds the album art for the song
-function backupSongInfo(result) {
+function backupSongInfo(result, secondInfoStream) {
 	return new Promise(async (resolve, reject) => {
 		//Make request to TuneIn endpoint
 		let data = await requestURL(secondInfoStream);
@@ -179,6 +179,8 @@ function backupSongInfo(result) {
 		result.artist = songInfo.artist;
 		if (result.subTitle === "Kiss92") {
 			result.subTitle = "Song Info";
+		} else if (result.subTitle === "Yes 93.3 FM") {
+			result.subTitle = "歌曲信息";
 		} else {
 			result.title = "-";
 			result.artist = "-";
@@ -187,9 +189,43 @@ function backupSongInfo(result) {
 	});
 }
 
+//Determine the song info stream
+function determineSongInfoStream(message) {
+	return new Promise(async (resolve, reject) => {
+		let data = {};
+		//The station user has selected
+		let station = message.content.split(" ")[1];
+		if (station == undefined) {
+			//The station currently playing
+			station = currentStation;
+			if (station == "") {
+				message.channel.send("There is no radio station playing at the moment");
+				reject();
+			}
+		}
+		//Find infoStream
+		if (station == "kiss92") {
+			data.infoStream = kiss92InfoStream;
+			data.secondInfoStream = kiss92SecondInfoStream;
+		} else if (station == "yes933") {
+			data.infoStream = yes933InfoStream;
+			data.secondInfoStream = yes933SecondInfoStream;
+		} else {
+			message.channel.send("Something went wrong.");
+			reject();
+		}
+		resolve(data);
+	});
+}
+
 //Get song info
 function getSongInfo(message) {
 	return new Promise(async (resolve, reject) => {
+		let outcome = await determineSongInfoStream(message);
+		if (!outcome)
+			return;
+		let infoStream = outcome.infoStream;
+		let secondInfoStream = outcome.secondInfoStream;
 		//Send http request to radio station
 		let data = await requestURL(infoStream);
 		//Parse XML to JSON
@@ -197,7 +233,7 @@ function getSongInfo(message) {
 		//Read JSON
 		let result = await songDuration(data);
 		//Get more info on the current song
-		result = await backupSongInfo(result);
+		result = await backupSongInfo(result, secondInfoStream);
 		//Send song info to chat
 		message.channel.send({embed: {
 			color: 3447003,
@@ -265,9 +301,12 @@ client.on("message", async message => {
 				if (station == "kiss92") {
 					//Kiss92
 					var stream = kiss92Stream;
-				} else if (station == "933" || station == "yes933") {
+				} else if (station == "yes933") {
 					//YES 933
 					var stream = yes933Stream;
+				} else if (!station) {
+					message.channel.send("Please select a radio station. [Kiss92, Yes933]");
+					return;
 				} else {
 					//Station is not supported
 					message.channel.send("Radio station does not exist!");
@@ -292,9 +331,9 @@ client.on("message", async message => {
 		} else if (command === "!stop") {
 			//Disconnect from the voice channel
 			endStream(message, client);
-		} else if (command === "!song") {
+		} else if (command.startsWith("!song")) {
 			//Get song info
-			await getSongInfo(message);
+			getSongInfo(message);
 		}
 	}
 });

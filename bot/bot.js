@@ -6,24 +6,21 @@ var convert = require('xml-js');
 var config = require("./config.json");
 var moment = require("moment");
 
-//Kiss92 stream URL
-var kiss92Stream = "http://playerservices.streamtheworld.com/api/livestream-redirect/KISS_92AAC.aac?tdtok=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiIsImtpZCI6ImZTeXA4In0.eyJpc3MiOiJ0aXNydiIsInN1YiI6IjIxMDY0IiwiaWF0IjoxNTgxNTE0MTQ4LCJ0ZC1yZWciOmZhbHNlfQ.k8L5xHd8S01FJ9a9QVxd8A48Eli9O_V9N89aiKkli48";
-var kiss92InfoStream = "https://np.tritondigital.com/public/nowplaying?mountName=KISS_92AAC&numberToFetch=1&eventType=track&request.preventCache=1581742131922";
-var kiss92SecondInfoStream = "https://feed.tunein.com/profiles/s180099/nowPlaying?token=eyJwIjpmYWxzZSwidCI6IjIwMjAtMDItMTdUMTA6MjE6NDMuNzI2MDE0N1oifQ&itemToken=BgUFAAEAAQABAAEAb28Bg78CAAEFAAA&formats=mp3,aac,ogg,flash,html,hls&serial=7ba551c5-cece-424f-aceb-1be5e3c5062c&partnerId=RadioTime&version=3.8&itemUrlScheme=secure&reqAttempt=1";
-
-//YES 933 stream URL
-var yes933Stream = "http://playerservices.streamtheworld.com/api/livestream-redirect/YES933_PREM.aac?tdtok=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiIsImtpZCI6ImZTeXA4In0.eyJpc3MiOiJ0aXNydiIsInN1YiI6IjIxMDY0IiwiaWF0IjoxNTgxOTQwNzg2LCJ0ZC1yZWciOmZhbHNlfQ.1hYK0m1_6eSKv_ZqT5uPmEboyuAEEQud0jOVemLBk_M";
-var yes933InfoStream = "https://np.tritondigital.com/public/nowplaying?mountName=YES933_PREM&numberToFetch=1&eventType=track&request.preventCache=1581742131922";
-var yes933SecondInfoStream = "https://feed.tunein.com/profiles/s25609/nowPlaying?token=eyJwIjpmYWxzZSwidCI6IjIwMjAtMDItMTdUMTA6MjE6NDMuNzI2MDE0N1oifQ&itemToken=BgUFAAEAAQABAAEAb28Bg78CAAEFAAA&formats=mp3,aac,ogg,flash,html,hls&serial=7ba551c5-cece-424f-aceb-1be5e3c5062c&partnerId=RadioTime&version=3.8&itemUrlScheme=secure&reqAttempt=1";
-
 //Misc vars
 var currentStation = dispatcher = "";
+var stationlist = [];
 
-//Boot discord bot
-client.on("ready", () => {
-	//Logged in to bot account
-	console.log(`Logged in as ${client.user.tag}`);
-});
+//-- Classes --//
+
+//Radio station
+function station(name, stream, info1, info2) {
+	this.name = name;
+	this.stream = stream;
+	this.mainInfo = info1;
+	this.secondaryInfo = info2;
+}
+
+//-- Functions --//
 
 //Pretty print song duration
 function str_pad_left(string,pad,length) {
@@ -198,22 +195,23 @@ function determineSongInfoStream(message) {
 		if (station == undefined) {
 			//The station currently playing
 			station = currentStation;
-			if (station == "") {
+			if (station == undefined) {
 				message.channel.send("There is no radio station playing at the moment");
 				reject();
 			}
 		}
 		//Find infoStream
-		if (station == "kiss92") {
-			data.infoStream = kiss92InfoStream;
-			data.secondInfoStream = kiss92SecondInfoStream;
-		} else if (station == "yes933") {
-			data.infoStream = yes933InfoStream;
-			data.secondInfoStream = yes933SecondInfoStream;
-		} else {
-			message.channel.send("Something went wrong.");
+		stationlist.forEach(radioStation => {
+			if (radioStation.name == station) {
+				data.infoStream = radioStation.mainInfo;
+				data.secondInfoStream = radioStation.secondaryInfo;
+			}
+		});
+		if (!data) {
+			message.channel.send("The station does not exist.");
 			reject();
 		}
+		console.log(data);
 		resolve(data);
 	});
 }
@@ -285,6 +283,51 @@ function getSongInfo(message) {
 	});
 }
 
+//Loads station configurations
+function loadRadio() {
+	return new Promise((resolve, reject) => {
+		//Read station config list
+		var radioList = require("./stations.json").stations;
+		//Loop through station list
+		var i = 0;
+		radioList.forEach(radioStation => {
+			//Update stations array with each station read from radioList by initialising a new class
+			let radioTemp = new station(radioStation.name, radioStation.streamURL, radioStation.infoURL, radioStation.secondaryInfo);
+			stationlist[i] = radioTemp;
+			i++;
+		});
+		resolve(true);
+	});
+}
+
+//Indexes station list to search for streamURL
+function findStream(station) {
+	return new Promise((resolve, reject) => {
+		let stream = "";
+		stationlist.forEach(radioStation => {
+			if (radioStation.name == station) {
+				stream = radioStation.stream;
+			}
+		});
+		resolve(stream);
+	});
+}
+
+//-- Main bot --//
+
+//Boot discord bot
+client.on("ready", async () => {
+	//-- Boot Sequence --//
+	//Load radio stations to memory
+	console.log("Loading radio station list to memory...");
+	await loadRadio();
+	console.log("Radio stations read to memory!");
+	//Logged in to bot account
+	console.log("Logging in to Discord...");
+	console.log(`Logged in as ${client.user.tag}`);
+	console.log("Bot is ready!");
+});
+
 //Bot commands
 client.on("message", async message => {
 	//Check if the message is a command
@@ -298,18 +341,10 @@ client.on("message", async message => {
 			let station = command.split(" ")[1];
 			//Checks if the current station is the same as the one the user selected
 			if (currentStation !== station) {
-				if (station == "kiss92") {
-					//Kiss92
-					var stream = kiss92Stream;
-				} else if (station == "yes933") {
-					//YES 933
-					var stream = yes933Stream;
-				} else if (!station) {
-					message.channel.send("Please select a radio station. [Kiss92, Yes933]");
-					return;
-				} else {
-					//Station is not supported
-					message.channel.send("Radio station does not exist!");
+				//Index stationlist array to see if the radio station exists
+				let stream = await findStream(station);
+				if (!stream) {
+					message.channel.send("That radio station is not supported by this bot.");
 					return;
 				}
 				//End current stream if the bot is playing songs

@@ -207,11 +207,11 @@ function determineSongInfoStream(message) {
 				data.secondInfoStream = radioStation.secondaryInfo;
 			}
 		});
-		if (!data) {
-			message.channel.send("The station does not exist.");
+		//Checks if the json is still empty
+		if (!Object.keys(data).length) {
+			//Station does not exist, terminate
 			reject();
 		}
-		console.log(data);
 		resolve(data);
 	});
 }
@@ -219,20 +219,19 @@ function determineSongInfoStream(message) {
 //Get song info
 function getSongInfo(message) {
 	return new Promise(async (resolve, reject) => {
-		let outcome = await determineSongInfoStream(message);
-		if (!outcome)
-			return;
-		let infoStream = outcome.infoStream;
-		let secondInfoStream = outcome.secondInfoStream;
+		let station = await determineSongInfoStream(message).catch(() => {
+			//Station does not exist, notify user
+			message.channel.send("The station does not exist.");
+		});
 		//Send http request to radio station
-		let data = await requestURL(infoStream);
+		let data = await requestURL(station.infoStream);
 		//Parse XML to JSON
 		data = await XMLtoJSON(data);
 		//Read JSON
 		let result = await songDuration(data);
 		//Get more info on the current song
-		result = await backupSongInfo(result, secondInfoStream);
-		//Send song info to chat
+		result = await backupSongInfo(result, station.secondInfoStream);
+		//Construct and send song info to chat
 		message.channel.send({embed: {
 			color: 3447003,
 			author: {

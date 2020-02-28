@@ -174,7 +174,7 @@ function backupSongInfo(result, secondInfoStream) {
 		songInfo = await splitSongInfo(songInfo);
 		result.title = songInfo.title;
 		result.artist = songInfo.artist;
-		if (result.subTitle === "Kiss92") {
+		if (result.subTitle === "Kiss92" || result.subTitle === "ONE FM 91.3") {
 			result.subTitle = "Song Info";
 		} else if (result.subTitle === "Yes 93.3 FM") {
 			result.subTitle = "歌曲信息";
@@ -210,7 +210,12 @@ function determineSongInfoStream(message) {
 		//Checks if the json is still empty
 		if (!Object.keys(data).length) {
 			//Station does not exist, terminate
-			reject();
+			reject(1);
+		}
+		//Checks if the station has URLs for obtaining song info
+		if (data.infoStream == "-") {
+			//Station does not have infostream, abort
+			reject(2);
 		}
 		resolve(data);
 	});
@@ -219,9 +224,24 @@ function determineSongInfoStream(message) {
 //Get song info
 function getSongInfo(message) {
 	return new Promise(async (resolve, reject) => {
-		let station = await determineSongInfoStream(message).catch(() => {
-			//Station does not exist, notify user
-			message.channel.send("The station does not exist.");
+		let station = await determineSongInfoStream(message).catch((err) => {
+			//Respond appropriately to the error
+			switch (err) {
+				case 1:
+					//Station does not exist, notify user
+					message.channel.send("The station does not exist.");
+					break;
+				case 2:
+					//Station does not have a valid info url
+					message.channel.send("Could not find the info url for requested station");
+					break;
+				default:
+					//Unknown error occured
+					message.channel.send("Unknown error has occured. Please try again later.");
+					break;
+			}
+			//Abort
+			return;
 		});
 		//Send http request to radio station
 		let data = await requestURL(station.infoStream);
@@ -324,6 +344,10 @@ client.on("ready", async () => {
 	//Logged in to bot account
 	console.log("Logging in to Discord...");
 	console.log(`Logged in as ${client.user.tag}`);
+	client.user.setActivity("Type !help to see my commands", {
+		type: "STREAMING",
+		url: "https://github.com/Garlicvideos/sg-radio-bot"
+	});
 	console.log("Bot is ready!");
 });
 
@@ -362,12 +386,73 @@ client.on("message", async message => {
 			} else {
 				message.channel.send(capitalizeFirstLetter(station) + " is already playing!");
 			}
-		} else if (command === "!stop") {
+		}
+
+		//Stops radio stream
+		if (command === "!stop") {
 			//Disconnect from the voice channel
 			endStream(message, client);
-		} else if (command.startsWith("!song")) {
+		}
+
+		//Fetches the info of the current song or of the current one being played on the specified radio station
+		if (command.startsWith("!song")) {
 			//Get song info
 			getSongInfo(message);
+		}
+
+		//Reloads the radio station list so that new stations are registered without having to reboot the bot
+		if (command.startsWith("!reload")) {
+			//Reloads station list
+			loadRadio().then((result) => {
+				if (result) {
+					message.channel.send("Radio station list has been reloaded.");
+				} else {
+					message.channel.send("Failed to reload radio station list.");
+				}
+			});
+		}
+
+		//Adds new radio station to bot
+		if (command.startsWith("!addStation")) {
+			//Checks if the command is up to standard
+		}
+
+		//Provide command list for the user
+		if (command.startsWith("!help")) {
+			//Construct and send command list
+			message.channel.send({embed: {
+			color: 0xd46d13,
+			author: {
+				name: client.user.username,
+				icon_url: client.user.avatarURL
+			},
+			title: "Singapore Radio Bot",
+			description: "These are the commands I respond to",
+			fields: [{
+				name: "!help",
+				value: "Lists the available commands for this bot.",
+			},
+			{
+				name: "!play <station>",
+				value: "Plays the selected radio station if the bot supports it.",
+			},
+			{
+				name: "!song <station> (Parameters are optional)",
+				value: "Gets the information for the song the selected radio station is currently playing.",
+			},
+			{
+				name: "!stop",
+				value: "Stops the radio stream",
+			},
+			{
+				name: "!reload",
+				value: "Reloads the radio station list from config. Used to add new radio stations.",
+			}],
+			footer: {
+		      icon_url: client.user.avatarURL,
+		      text: "Command me daddy"
+		    }
+		}});
 		}
 	}
 });

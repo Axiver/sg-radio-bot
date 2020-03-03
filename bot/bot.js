@@ -417,6 +417,23 @@ client.on("message", async message => {
 			//Checks if the command is up to standard
 		}
 
+		//Lists the available radio stations for selection
+		if (command.startsWith("!stations")) {
+			//Loops through radio station list
+			let compiledMessage = "";
+			let i = 0;
+			stationlist.forEach(radioStation => {
+				//Update stations array with each station read from radioList by initialising a new class
+				if (i == 0) {
+					compiledMessage += `${radioStation.name}`;
+				} else {
+					compiledMessage += `, ${radioStation.name}`;
+				}
+				i++;
+			});
+			message.channel.send(compiledMessage);
+		}
+
 		//Provide command list for the user
 		if (command.startsWith("!help")) {
 			//Construct and send command list
@@ -447,6 +464,10 @@ client.on("message", async message => {
 			{
 				name: "!reload",
 				value: "Reloads the radio station list from config. Used to add new radio stations.",
+			},
+			{
+				name: "!stations",
+				value: "Lists the available radio stations for selection",
 			}],
 			footer: {
 		      icon_url: client.user.avatarURL,

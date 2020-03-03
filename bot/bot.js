@@ -5,6 +5,7 @@ var https = require("https");
 var convert = require('xml-js');
 var config = require("./config.json");
 var moment = require("moment");
+var fs = require("fs");
 
 //Misc vars
 var currentStation = dispatcher = "";
@@ -86,7 +87,7 @@ function endStream(message, client) {
 	}
 	//Leave the voice channel
 	message.guild.me.voiceChannel.leave();
-	currentStation = null;
+	currentStation = "";
 	message.channel.send("Radio stream stopped.");
 }
 
@@ -195,9 +196,9 @@ function determineSongInfoStream(message) {
 		if (station == undefined) {
 			//The station currently playing
 			station = currentStation;
-			if (station == undefined) {
+			if (station == "") {
 				message.channel.send("There is no radio station playing at the moment");
-				reject();
+				return;
 			}
 		}
 		//Find infoStream
@@ -209,14 +210,17 @@ function determineSongInfoStream(message) {
 		});
 		//Checks if the json is still empty
 		if (!Object.keys(data).length) {
-			//Station does not exist, terminate
-			reject(1);
+			//Station does not exist, notify user
+			message.channel.send("The station does not exist.");
+			return;
 		}
 		//Checks if the station has URLs for obtaining song info
 		if (data.infoStream == "-") {
-			//Station does not have infostream, abort
-			reject(2);
+			//Station does not have a valid info url
+			message.channel.send("Could not find the info url for requested station");
+			return;
 		}
+		console.log(data);
 		resolve(data);
 	});
 }
@@ -224,25 +228,7 @@ function determineSongInfoStream(message) {
 //Get song info
 function getSongInfo(message) {
 	return new Promise(async (resolve, reject) => {
-		let station = await determineSongInfoStream(message).catch((err) => {
-			//Respond appropriately to the error
-			switch (err) {
-				case 1:
-					//Station does not exist, notify user
-					message.channel.send("The station does not exist.");
-					break;
-				case 2:
-					//Station does not have a valid info url
-					message.channel.send("Could not find the info url for requested station");
-					break;
-				default:
-					//Unknown error occured
-					message.channel.send("Unknown error has occured. Please try again later.");
-					break;
-			}
-			//Abort
-			return;
-		});
+		let station = await determineSongInfoStream(message);
 		//Send http request to radio station
 		let data = await requestURL(station.infoStream);
 		//Parse XML to JSON
@@ -309,9 +295,10 @@ function loadRadio() {
 		var radioList = require("./stations.json").stations;
 		//Loop through station list
 		var i = 0;
+		console.log(radioList);
 		radioList.forEach(radioStation => {
 			//Update stations array with each station read from radioList by initialising a new class
-			let radioTemp = new station(radioStation.name, radioStation.streamURL, radioStation.infoURL, radioStation.secondaryInfo);
+			let radioTemp = new station(radioStation.name, radioStation.stream, radioStation.mainInfo, radioStation.secondaryInfo);
 			stationlist[i] = radioTemp;
 			i++;
 		});
@@ -329,6 +316,42 @@ function findStream(station) {
 			}
 		});
 		resolve(stream);
+	});
+}
+
+//Adds new radio stations to the station list
+async function addStation(message) {
+	console.log("hello");
+	//Removes !addstation
+	let command = message.content.split(" ").splice(1, 4);
+	//Perform check
+	for (i = 0; i < 4; i++) {
+		let element = command[i];
+		console.log(element);
+		//Checks if the URL or stream name is not present
+		console.log(element);
+		if (element == undefined) {
+			if (i < 2) {
+				//Inform user
+				message.channel.send("The stream name and URL are required");
+				//Abort
+				return;
+			} else if (i > 1) {
+				//Sets the streaminfo urls as "-"
+				command[i] = "-";
+			}
+		}
+	};
+	//Create a new station object
+	let radioStation = new station(command[0], command[1], command[2], command[3]);
+	//Update stationlist with new station
+	stationlist[stationlist.length] = radioStation;
+	//Update stations.json with new stationlist
+	let json = {};
+	json["stations"] = stationlist;
+	fs.writeFile('stations.json', JSON.stringify(json), 'utf8', () => {
+		//Notify user
+		message.channel.send(`Station ${radioStation.name} has been added!`);
 	});
 }
 
@@ -413,8 +436,9 @@ client.on("message", async message => {
 		}
 
 		//Adds new radio station to bot
-		if (command.startsWith("!addStation")) {
-			//Checks if the command is up to standard
+		if (command.startsWith("!addstation")) {
+			//Begin radio station addition process
+			addStation(message);
 		}
 
 		//Lists the available radio stations for selection

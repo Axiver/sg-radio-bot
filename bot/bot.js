@@ -6,6 +6,7 @@ var convert = require('xml-js');
 var config = require("./config.json");
 var moment = require("moment");
 var fs = require("fs");
+var genius = require("genius-lyrics-api");
 
 //Misc vars
 var currentStation = dispatcher = "";
@@ -122,7 +123,7 @@ function XMLtoJSON(xml) {
 }
 
 //Calculates the duration of song, when it started and when it will end
-function songDuration(data) {
+function firstSongInfo(data) {
 	return new Promise((resolve, reject) => {
 		let result = {};
 		//Read JSON
@@ -141,6 +142,9 @@ function songDuration(data) {
 		result.songDuration = str_pad_left(minutes,'0',2)+':'+str_pad_left(seconds,'0',2);
 		//Calculate Song end time
 		result.songEndTime = songStartMoment.add(seconds, 'seconds').add(minutes, 'minutes').format('h:mm:sa');
+		//Get song title and artist
+		result.title = data["nowplaying-info-list"]["nowplaying-info"]["property"][2]["_cdata"];
+		result.artist = data["nowplaying-info-list"]["nowplaying-info"]["property"][3]["_cdata"];
 		resolve(result);
 	});	
 }
@@ -169,12 +173,6 @@ function backupSongInfo(result, secondInfoStream) {
 		result.slogan = data.Primary.Subtitle;
 		//Gets the current subtitle of the station
 		result.subTitle = data.Secondary.Subtitle;
-		//Gets the title and artist of current song
-		let songInfo = data.Secondary.Title;
-		//Split song info's combined title and artist into seperate strings
-		songInfo = await splitSongInfo(songInfo);
-		result.title = songInfo.title;
-		result.artist = songInfo.artist;
 		if (result.subTitle === "Kiss92" || result.subTitle === "ONE FM 91.3") {
 			result.subTitle = "Song Info";
 		} else if (result.subTitle === "Yes 93.3 FM") {
@@ -220,7 +218,6 @@ function determineSongInfoStream(message) {
 			message.channel.send("Could not find the info url for requested station");
 			return;
 		}
-		console.log(data);
 		resolve(data);
 	});
 }
@@ -234,57 +231,10 @@ function getSongInfo(message) {
 		//Parse XML to JSON
 		data = await XMLtoJSON(data);
 		//Read JSON
-		let result = await songDuration(data);
+		let result = await firstSongInfo(data);
 		//Get more info on the current song
 		result = await backupSongInfo(result, station.secondInfoStream);
-		//Construct and send song info to chat
-		message.channel.send({embed: {
-			color: 3447003,
-			author: {
-				name: client.user.username,
-				icon_url: client.user.avatarURL
-			},
-			title: result.slogan,
-			description: result.subTitle,
-			thumbnail: {
-				url: result.albumArt,
-			},
-			fields: [{
-				name: "Song Title",
-				value: result.title,
-				inline: true
-			},
-			{
-				name: "Artist",
-				value: result.artist,
-				inline: true
-			},
-			{
-				name: "\u200b",
-				value: "\u200b",
-				inline: true
-			},
-			{
-				name: "Start time",
-				value: result.songStartTime,
-				inline: true
-			},
-			{
-				name: "End time",
-				value: result.songEndTime,
-				inline: true
-			},
-			{
-				name: "Song Duration",
-				value: result.songDuration,
-				inline: true
-			}],
-			footer: {
-		      icon_url: client.user.avatarURL,
-		      text: "Info taken by intercepting TuneIn's Web Requests"
-		    }
-		}});
-		resolve();
+		resolve(result);
 	});
 }
 
@@ -295,7 +245,6 @@ function loadRadio() {
 		var radioList = require("./stations.json").stations;
 		//Loop through station list
 		var i = 0;
-		console.log(radioList);
 		radioList.forEach(radioStation => {
 			//Update stations array with each station read from radioList by initialising a new class
 			let radioTemp = new station(radioStation.name, radioStation.stream, radioStation.mainInfo, radioStation.secondaryInfo);
@@ -321,15 +270,12 @@ function findStream(station) {
 
 //Adds new radio stations to the station list
 async function addStation(message) {
-	console.log("hello");
 	//Removes !addstation
 	let command = message.content.split(" ").splice(1, 4);
 	//Perform check
 	for (i = 0; i < 4; i++) {
 		let element = command[i];
-		console.log(element);
 		//Checks if the URL or stream name is not present
-		console.log(element);
 		if (element == undefined) {
 			if (i < 2) {
 				//Inform user
@@ -355,23 +301,85 @@ async function addStation(message) {
 	});
 }
 
+//Parses the lyrics from Genius API
+function parseLyrics(lyrics) {
+	return new Promise((resolve, reject) => {
+		//Format the result into a discord-sendable format
+		let formatted = [];
+		//Check if genius has returned any lyrics
+		if (lyrics != null) {
+			//Split the lyrics into sections
+			let result = lyrics.split(/[\[\]]+/);
+			//Loop through the array section by section (2 elements at a time)
+			for (i = 1; i < result.length; i++) {
+				//Format section title so that '[' and ']' are added back into it
+				let sectionTitle = '['+result[i]+']';
+				//Increase the value of i again to access the lyrics for that section
+				i++;
+				let lyricSection = {"name": sectionTitle, "value": result[i]};
+				formatted.push(lyricSection);
+			}
+		} else {
+			formatted[0] = {"name": "-", "value": "-"};
+		}
+		resolve(formatted);
+	});
+}
+
+//Message loading animation
+function loadAnimation(progress, result, message) {
+	return new Promise((resolve, reject) => {
+  		//The lyrics have not yet been added
+		//Get the appropriate symbol
+		let symbols = ["/", "—", "\\", "|", "/", "—", "\\", "|"];
+		progress = symbols[progress];
+		//Edit the previously sent temporary message
+		message.edit({embed: {
+			color: 3447003,
+			author: {
+				name: capitalizeFirstLetter(currentStation),
+				icon_url: client.user.avatarURL
+			},
+			title: result.title,
+			description: result.artist,
+			thumbnail: {
+				url: result.albumArt,
+			},
+			fields: [{
+				"name": "Retrieving Lyrics",
+				"value": `Please give me a moment ${progress}`
+			}],
+			footer: {
+		      icon_url: client.user.avatarURL,
+		      text: "Lyrics will be obtained by sending a dummy request to Genius"
+		    }
+		}});
+		resolve();
+	});
+}
+
+//Boot sequence for the bot
+async function boot() {
+	//Load radio stations to memory
+	console.log("Loading radio station list to memory...");
+	await loadRadio();
+	console.log("Radio stations read to memory!");
+	//Login to discord
+	console.log("Logging in to discord...");
+	await client.login(config.token);
+	console.log(`Logged in as ${client.user.tag}`);
+}
+
 //-- Main bot --//
 
 //Boot discord bot
 client.on("ready", async () => {
 	//-- Boot Sequence --//
-	//Load radio stations to memory
-	console.log("Loading radio station list to memory...");
-	await loadRadio();
-	console.log("Radio stations read to memory!");
 	//Logged in to bot account
-	console.log("Logging in to Discord...");
-	console.log(`Logged in as ${client.user.tag}`);
 	client.user.setActivity("Type !help to see my commands", {
 		type: "STREAMING",
 		url: "https://github.com/Garlicvideos/sg-radio-bot"
 	});
-	console.log("Bot is ready!");
 });
 
 //Bot commands
@@ -420,7 +428,54 @@ client.on("message", async message => {
 		//Fetches the info of the current song or of the current one being played on the specified radio station
 		if (command.startsWith("!song")) {
 			//Get song info
-			getSongInfo(message);
+			let result = await getSongInfo(message);
+			//Construct and send song info to chat
+			message.channel.send({embed: {
+				color: 3447003,
+				author: {
+					name: client.user.username,
+					icon_url: client.user.avatarURL
+				},
+				title: result.slogan,
+				description: result.subTitle,
+				thumbnail: {
+					url: result.albumArt,
+				},
+				fields: [{
+					name: "Song Title",
+					value: result.title,
+					inline: true
+				},
+				{
+					name: "Artist",
+					value: result.artist,
+					inline: true
+				},
+				{
+					name: "\u200b",
+					value: "\u200b",
+					inline: true
+				},
+				{
+					name: "Start time",
+					value: result.songStartTime,
+					inline: true
+				},
+				{
+					name: "End time",
+					value: result.songEndTime,
+					inline: true
+				},
+				{
+					name: "Song Duration",
+					value: result.songDuration,
+					inline: true
+				}],
+				footer: {
+			      icon_url: client.user.avatarURL,
+			      text: "Info taken by intercepting TuneIn's Web Requests"
+			    }
+			}});
 		}
 
 		//Reloads the radio station list so that new stations are registered without having to reboot the bot
@@ -462,45 +517,125 @@ client.on("message", async message => {
 		if (command.startsWith("!help")) {
 			//Construct and send command list
 			message.channel.send({embed: {
-			color: 0xd46d13,
-			author: {
-				name: client.user.username,
-				icon_url: client.user.avatarURL
-			},
-			title: "Singapore Radio Bot",
-			description: "These are the commands I respond to",
-			fields: [{
-				name: "!help",
-				value: "Lists the available commands for this bot.",
-			},
-			{
-				name: "!play <station>",
-				value: "Plays the selected radio station if the bot supports it.",
-			},
-			{
-				name: "!song <station> (Parameters are optional)",
-				value: "Gets the information for the song the selected radio station is currently playing.",
-			},
-			{
-				name: "!stop",
-				value: "Stops the radio stream",
-			},
-			{
-				name: "!reload",
-				value: "Reloads the radio station list from config. Used to add new radio stations.",
-			},
-			{
-				name: "!stations",
-				value: "Lists the available radio stations for selection",
-			}],
-			footer: {
-		      icon_url: client.user.avatarURL,
-		      text: "Command me daddy"
-		    }
-		}});
+				color: 0xd46d13,
+				author: {
+					name: client.user.username,
+					icon_url: client.user.avatarURL
+				},
+				title: "Singapore Radio Bot",
+				description: "These are the commands I respond to",
+				fields: [{
+					name: "!help",
+					value: "Lists the available commands for this bot.",
+				},
+				{
+					name: "!play <station>",
+					value: "Plays the selected radio station if the bot supports it.",
+				},
+				{
+					name: "!song <station> (Parameters are optional)",
+					value: "Gets the information for the song the selected radio station is currently playing.",
+				},
+				{
+					name: "!stop",
+					value: "Stops the radio stream",
+				},
+				{
+					name: "!reload",
+					value: "Reloads the radio station list from config. Used to add new radio stations.",
+				},
+				{
+					name: "!stations",
+					value: "Lists the available radio stations for selection",
+				}],
+				footer: {
+			      icon_url: client.user.avatarURL,
+			      text: "Command me daddy"
+			    }
+			}});
+		}
+
+		//Search for the lyrics for the current song
+		if (command.startsWith("!lyrics")) {
+			//Gets song info
+			let result = await getSongInfo(message);
+			//Sends a temporary message
+			message.channel.send({embed: {
+				color: 3447003,
+				author: {
+					name: capitalizeFirstLetter(currentStation),
+					icon_url: client.user.avatarURL
+				},
+				title: result.title,
+				description: result.artist,
+				thumbnail: {
+					url: result.albumArt,
+				},
+				fields: [{
+					"name": "Retrieving Lyrics",
+					"value": "Please give me a moment"
+				}],
+				footer: {
+			      icon_url: client.user.avatarURL,
+			      text: "Lyrics will be obtained by sending a dummy request to Genius"
+			    }
+			}}).then(tempMessage => {
+				//Enable lyric loading animation
+				let i = 0;
+				loadAnimation(i, result, tempMessage);
+				i++;
+				let animation = setInterval(async function() {
+					if (i < 8) {
+						loadAnimation(i, result, tempMessage);
+						i++;
+					} else {
+						i = 0;
+						loadAnimation(i, result, tempMessage);
+					}
+				}, 600);
+				//Configure the API request
+				let options = {
+					apiKey: config['genius-token'],
+					title: result.title,
+					artist: result.artist,
+					optimizeQuery: true
+				};
+				//Send the request to Genius
+				genius.getLyrics(options).then(async lyrics => {
+					//Split lyrics into sections (Verse 1, Verse 2, Chorus, etc)
+					lyrics = await parseLyrics(lyrics);
+					//Construct and send song lyrics to chat
+					if (result.title == "-" || result.artist == "-") {
+						result.title = "Lyrics";
+						result.artist = "No lyrics were found";
+					}
+					//Stops the message loading animation
+					await clearInterval(animation);
+					console.log("Hey stop it right now");
+					console.log(lyrics);
+					setTimeout(function() {
+						tempMessage.edit({embed: {
+							color: 3447003,
+							author: {
+								name: capitalizeFirstLetter(currentStation),
+								icon_url: client.user.avatarURL
+							},
+							title: result.title,
+							description: result.artist,
+							thumbnail: {
+								url: result.albumArt,
+							},
+							fields: lyrics,
+							footer: {
+						      icon_url: client.user.avatarURL,
+						      text: "Lyrics obtained by sending a dummy request to Genius"
+						    }
+						}});
+					}, 500);
+				});
+			});
 		}
 	}
 });
 
-//Login to discord
-client.login(config.token);
+boot();

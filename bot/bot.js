@@ -319,9 +319,12 @@ function parseLyrics(lyrics) {
 				for (i = 1; i < lyrics.length; i++) {
 					//Format section title so that '[' and ']' are added back into it
 					let sectionTitle = `Section ${i}`;
+					console.log(sectionTitle);
 					let lyricSection = {"name": sectionTitle, "value": lyrics[i]};
+					console.log(lyricSection);
 					formatted.push(lyricSection);
 				}
+				console.log(lyrics);
 			} else {
 				//Loop through the array section by section (2 elements at a time)
 				for (i = 1; i < result.length; i++) {
@@ -507,7 +510,7 @@ client.on("message", async message => {
 		//Adds new radio station to bot
 		if (command.startsWith("!addstation")) {
 			//Begin radio station addition process
-			addStation(message);
+			//addStation(message);
 		}
 
 		//Lists the available radio stations for selection
@@ -549,6 +552,10 @@ client.on("message", async message => {
 				{
 					name: "!song <station> (Parameters are optional)",
 					value: "Gets the information for the song the selected radio station is currently playing.",
+				},
+				{
+					name: "!lyrics <station> (Parameters are optional)",
+					value: "Searches Genius for the lyrics of the current song being played",
 				},
 				{
 					name: "!stop",
@@ -613,8 +620,8 @@ client.on("message", async message => {
 				//Configure the API request
 				let options = {
 					apiKey: config['genius-token'],
-					title: result.title,
-					artist: result.artist,
+					title: encodeURI(result.title),
+					artist: encodeURI(result.artist),
 					optimizeQuery: true
 				};
 				//Send the request to Genius
@@ -628,6 +635,8 @@ client.on("message", async message => {
 					}
 					//Stops the message loading animation
 					await clearInterval(animation);
+					console.log(lyrics);
+					console.log(lyrics.length);
 					tempMessage.edit({embed: {
 						color: 3447003,
 						author: {

@@ -9,7 +9,9 @@ var fs = require("fs");
 var genius = require("genius-lyrics-api");
 
 //Misc vars
-var currentStation = dispatcher = "";
+var dispatcher = "";
+var streams = [];
+var radioCache = [];
 var stationlist = [];
 
 //-- Classes --//
@@ -37,59 +39,66 @@ function capitalizeFirstLetter(str) {
 }
 
 //Starts the radio stream
-function playStream(message, stationStream) {
+function playStream(message, stationStream, station) {
 	return new Promise((resolve, reject) => {
 		//Find the voice channel
 		if (!message.member.voiceChannel) {
 			message.channel.send("You need to be in a voice channel!");
 			return;
 		}
-		//Join the voice channel
+		//Searches through radioCache array to see if an active radio stream for this station is active
+		let index = radioCache.findIndex(data => data.station == station);
+		if (index > -1) {
+			//An active stream has been found
+			console.log("I found a active stream!");
+			var broadcast = radioCache[index]['broadcast'];
+		} else {
+			//There is no active stream. Create one.
+			//Create and bind broadcast to radioCache array
+			let json = {"station": station, "broadcast": client.createVoiceBroadcast()};
+			//Push the newly created broadcast to the array
+			index = radioCache.push(json);
+			console.log(index-1);
+			console.log(radioCache);
+			var broadcast = radioCache[index-1]['broadcast'];
+			//Get stream from radio station and blast it into the broadcast
+			const dispatcher = broadcast.playArbitraryInput(stationStream);
+		}
+		//Join the voice channel and play the radio stream
 		message.member.voiceChannel.join().then(connection => {
-			message.channel.send("Connected to voice channel!");
-			//Create broadcast
-			broadcast = client.createVoiceBroadcast();
-			//Get stream from radio station
-			dispatcher = broadcast.playArbitraryInput(stationStream);
-			//Broadcast to every VC the bot is connected to
-			for (const connection of client.voiceConnections.values()) {
-			  	connection.playBroadcast(dispatcher);
-			}
-			resolve();
+			console.log("Connected and playing broadcast");
+			connection.playBroadcast(broadcast);
 		});
-	});
-}
-
-//Switches from a radio station to another
-function switchStream(message, stationStream) {
-	return new Promise((resolve, reject) => {
-		//Leave the voice channel
-		message.guild.me.voiceChannel.leave();
-		message.member.voiceChannel.join().then(connection => {
-			//Create broadcast
-			broadcast = client.createVoiceBroadcast();
-			//Get stream from radio station
-			dispatcher = broadcast.playArbitraryInput(stationStream);
-			//Broadcast to every VC the bot is connected to
-			for (const connection of client.voiceConnections.values()) {
-			  	connection.playBroadcast(dispatcher);
-			}
-			resolve();
-		});
+		resolve();
 	});
 }
 
 //Ends the radio stream
-function endStream(message, client) {
-	//Find the voice channel
-	if (!message.guild.me.voiceChannel) {
-		message.channel.send("Radio stream was never started");
-		return;
-	}
-	//Leave the voice channel
-	message.guild.me.voiceChannel.leave();
-	currentStation = "";
-	message.channel.send("Radio stream stopped.");
+function endStream(message) {
+	return new Promise((resolve, reject) => {
+		//Find the voice channel
+		if (!message.guild.me.voiceChannel) {
+			//Check that this guild's stream info has been cleared
+			message.channel.send("Radio stream was never started");
+		} else {
+			//Leave the voice channel
+			message.guild.me.voiceChannel.leave();
+			message.channel.send("Radio stream stopped.");
+		}
+		//Set the stream of the guild to nothing
+		let guildID = message.guild.id;
+		let station = "";
+		//Loops through the streams array to search for this guildID
+		for (i = 0; i < streams.length; i++) {
+			//Checks if the guildID is present in the array
+			if (streams[i].guild == guildID) {
+				station = streams[i].name;
+				//Remove the entry from the array
+				streams.splice(i, 1);
+			}
+		}
+		resolve();
+	});
 }
 
 //Sends a https request to a endpoint
@@ -192,8 +201,11 @@ function determineSongInfoStream(message) {
 		//The station user has selected
 		let station = message.content.split(" ")[1];
 		if (station == undefined) {
-			//The station currently playing
-			station = currentStation;
+			//Get the name of the station currently playing
+			let guildID = message.guild.id;
+			let streamInfo = await getStream(guildID);
+			station = streamInfo.name;
+			console.log(streamInfo);
 			if (station == "") {
 				message.channel.send("There is no radio station playing at the moment");
 				return;
@@ -344,7 +356,9 @@ function parseLyrics(lyrics) {
 }
 
 //Message loading animation
-function loadAnimation(progress, result, message) {
+async function loadAnimation(progress, result, message) {
+	let guildID = message.guild.id;
+	let streamInfo = await getStream(guildID);
 	return new Promise((resolve, reject) => {
   		//The lyrics have not yet been added
 		//Get the appropriate symbol
@@ -354,7 +368,7 @@ function loadAnimation(progress, result, message) {
 		message.edit({embed: {
 			color: 3447003,
 			author: {
-				name: capitalizeFirstLetter(currentStation),
+				name: capitalizeFirstLetter(streamInfo.name),
 				icon_url: client.user.avatarURL
 			},
 			title: result.title,
@@ -371,6 +385,52 @@ function loadAnimation(progress, result, message) {
 		      text: "Lyrics will be obtained by sending a dummy request to Genius"
 		    }
 		}});
+		resolve();
+	});
+}
+
+//Gets the stream info of the current guild
+function getStream(guildID) {
+	return new Promise((resolve, reject) => {
+		//Loops through the streams array to search for this guildID
+		let streamInfo = {};
+		for (i = 0; i < streams.length; i++) {
+			//Checks if the guildID is present in the array
+			if (streams[i].guild == guildID) {
+				//Current guild has a ongoing stream. Retrieve information on the stream.
+				streamInfo.name = streams[i].name;
+			}
+		}
+		resolve(streamInfo);
+	});
+}
+
+//Updates stream information for the current guild
+function updateStream(guildID, station) {
+	return new Promise(async (resolve, reject) => {
+		console.log("updating stream!");
+		//Loops through the streams array to search for this guildID
+		console.log(streams);
+		console.log(streams.length);
+		let json = {"guild": guildID, "name": station};
+		console.log(json);
+		if (streams.find(item => item.guild == guildID)) {
+			//The guildid is in the array
+			//Find the index of the guildid
+			let index = streams.findIndex(stream => stream.guild == guildID);
+			console.log(index);
+			console.log('i really shouldnt be here');
+			//Current guild had a previous stream. Update the name of the station being streamed to the current one.
+			streams[index].name = station;
+		} else {
+			//It is not in the array
+			//The guildID was not present in the streams array
+			//Push the new entry into the array
+			let json = {"guild": guildID, "name": station};
+			streams.push(json);
+			console.log("I should be heree");
+			console.log(json);
+		}
 		resolve();
 	});
 }
@@ -410,36 +470,59 @@ client.on("message", async message => {
 		if (command.startsWith("!play")) {
 			//The station user has selected
 			let station = command.split(" ")[1];
+			//Get the guild id of the current discord server
+			let guildID = message.guild.id;
+			console.log(guildID);
+			console.log("what the fuck");
+			//Get the stream info of the current guild
+			let streamInfo = await getStream(guildID);
+			console.log(streamInfo);
 			//Checks if the current station is the same as the one the user selected
-			if (currentStation !== station) {
+			if (streamInfo.name !== station) {
 				//Index stationlist array to see if the radio station exists
 				let stream = await findStream(station);
 				if (!stream) {
 					message.channel.send("That radio station is not supported by this bot.");
 					return;
 				}
-				//End current stream if the bot is playing songs
-				if (currentStation) {
-					await switchStream(message, stream);
-					message.channel.send("Switched over from " + capitalizeFirstLetter(currentStation) + " to " + capitalizeFirstLetter(station));
+				//Checks if the guild has a ongoing radio stream
+				if (streamInfo.name != null) {
+					console.log("im not meant to be here");
+					//Server has a ongoing stream
+					//Switches from one station to another
+					await playStream(message, stream, station);
+					message.channel.send("Switched over from " + capitalizeFirstLetter(streamInfo.name) + " to " + capitalizeFirstLetter(station));
 					//Set current station
-					currentStation = station;
+					await updateStream(guildID, station);
 					return;
 				} else {
+					console.log("ok im here");
+					//Server does not have an ongoing stream
 					//Play selected radio stream
-					await playStream(message, stream);
+					await playStream(message, stream, station);
 					//Set current station
-					currentStation = station;
+					await updateStream(guildID, station);
+					return;
 				}
 			} else {
-				message.channel.send(capitalizeFirstLetter(station) + " is already playing!");
+				//Rejoin if it got disconnected
+				if (!message.guild.me.voiceChannel) {
+					//Get radio stream URL
+					let stream = await findStream(station);
+					//Play selected radio stream
+					await playStream(message, stream, station);
+					//Set current station
+					await updateStream(guildID, station);
+				} else {
+					message.channel.send(capitalizeFirstLetter(station) + " is already playing!");
+				}
 			}
 		}
 
 		//Stops radio stream
 		if (command === "!stop") {
 			//Disconnect from the voice channel
-			endStream(message, client);
+			await endStream(message);
 		}
 
 		//Fetches the info of the current song or of the current one being played on the specified radio station
@@ -580,6 +663,8 @@ client.on("message", async message => {
 		if (command.startsWith("!lyrics")) {
 			//Gets song info
 			let result = await getSongInfo(message);
+			let guildID = message.guild.id;
+			let streamInfo = await getStream(guildID);
 			//Bug fixing
 			//result.title = "LET ME LOVE YOU";
 			//result.artist = "DJ SNAKE FT. JUSTIN BIEBER";
@@ -587,7 +672,7 @@ client.on("message", async message => {
 			message.channel.send({embed: {
 				color: 3447003,
 				author: {
-					name: capitalizeFirstLetter(currentStation),
+					name: capitalizeFirstLetter(streamInfo.name),
 					icon_url: client.user.avatarURL
 				},
 				title: result.title,
@@ -640,7 +725,7 @@ client.on("message", async message => {
 					tempMessage.edit({embed: {
 						color: 3447003,
 						author: {
-							name: capitalizeFirstLetter(currentStation),
+							name: capitalizeFirstLetter(streamInfo.name),
 							icon_url: client.user.avatarURL
 						},
 						title: result.title,
@@ -651,7 +736,7 @@ client.on("message", async message => {
 						fields: lyrics,
 						footer: {
 					      icon_url: client.user.avatarURL,
-					      text: "Lyrics obtained by sending a dummy request to Genius"
+					      text: "Lyrics may not be accurate. The lyric feature is still unstable."
 					    }
 					}});
 				});

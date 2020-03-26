@@ -310,14 +310,28 @@ function parseLyrics(lyrics) {
 		if (lyrics != null) {
 			//Split the lyrics into sections
 			let result = lyrics.split(/[\[\]]+/);
-			//Loop through the array section by section (2 elements at a time)
-			for (i = 1; i < result.length; i++) {
-				//Format section title so that '[' and ']' are added back into it
-				let sectionTitle = '['+result[i]+']';
-				//Increase the value of i again to access the lyrics for that section
-				i++;
-				let lyricSection = {"name": sectionTitle, "value": result[i]};
-				formatted.push(lyricSection);
+			//Check if the lyrics have section titles (Genius is inconsistent af)
+			if (result.length <= 1) {
+				//Lyrics do not have section titles
+				//Auto-split lyrics into sections
+				lyrics = result[0].split('\n\n');
+				//Loop through the array section by section (2 elements at a time)
+				for (i = 1; i < lyrics.length; i++) {
+					//Format section title so that '[' and ']' are added back into it
+					let sectionTitle = `Section ${i}`;
+					let lyricSection = {"name": sectionTitle, "value": lyrics[i]};
+					formatted.push(lyricSection);
+				}
+			} else {
+				//Loop through the array section by section (2 elements at a time)
+				for (i = 1; i < result.length; i++) {
+					//Format section title so that '[' and ']' are added back into it
+					let sectionTitle = '['+result[i]+']';
+					//Increase the value of i again to access the lyrics for that section
+					i++;
+					let lyricSection = {"name": sectionTitle, "value": result[i]};
+					formatted.push(lyricSection);
+				}
 			}
 		} else {
 			formatted[0] = {"name": "-", "value": "-"};
@@ -559,6 +573,9 @@ client.on("message", async message => {
 		if (command.startsWith("!lyrics")) {
 			//Gets song info
 			let result = await getSongInfo(message);
+			//Bug fixing
+			//result.title = "LET ME LOVE YOU";
+			//result.artist = "DJ SNAKE FT. JUSTIN BIEBER";
 			//Sends a temporary message
 			message.channel.send({embed: {
 				color: 3447003,
@@ -580,7 +597,7 @@ client.on("message", async message => {
 			      text: "Lyrics will be obtained by sending a dummy request to Genius"
 			    }
 			}}).then(tempMessage => {
-				//Enable lyric loading animation
+				//Enable lyric loading animation (1 fps, or we get rate-limited by discord)
 				let i = 0;
 				loadAnimation(i, result, tempMessage);
 				i++;
@@ -592,7 +609,7 @@ client.on("message", async message => {
 						i = 0;
 						loadAnimation(i, result, tempMessage);
 					}
-				}, 600);
+				}, 1000);
 				//Configure the API request
 				let options = {
 					apiKey: config['genius-token'],
@@ -611,27 +628,23 @@ client.on("message", async message => {
 					}
 					//Stops the message loading animation
 					await clearInterval(animation);
-					console.log("Hey stop it right now");
-					console.log(lyrics);
-					setTimeout(function() {
-						tempMessage.edit({embed: {
-							color: 3447003,
-							author: {
-								name: capitalizeFirstLetter(currentStation),
-								icon_url: client.user.avatarURL
-							},
-							title: result.title,
-							description: result.artist,
-							thumbnail: {
-								url: result.albumArt,
-							},
-							fields: lyrics,
-							footer: {
-						      icon_url: client.user.avatarURL,
-						      text: "Lyrics obtained by sending a dummy request to Genius"
-						    }
-						}});
-					}, 500);
+					tempMessage.edit({embed: {
+						color: 3447003,
+						author: {
+							name: capitalizeFirstLetter(currentStation),
+							icon_url: client.user.avatarURL
+						},
+						title: result.title,
+						description: result.artist,
+						thumbnail: {
+							url: result.albumArt,
+						},
+						fields: lyrics,
+						footer: {
+					      icon_url: client.user.avatarURL,
+					      text: "Lyrics obtained by sending a dummy request to Genius"
+					    }
+					}});
 				});
 			});
 		}

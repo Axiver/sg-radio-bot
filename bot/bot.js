@@ -651,6 +651,14 @@ client.on("message", async message => {
 				{
 					name: "!stations",
 					value: "Lists the available radio stations for selection",
+				},
+				{
+					name: "!invite",
+					value: "Sends the invite link for this bot to chat",
+				},
+				{
+					name: "!reportbug",
+					value: "Sends the URL for bug report submission",
 				}],
 				footer: {
 			      icon_url: client.user.avatarURL,
@@ -741,6 +749,48 @@ client.on("message", async message => {
 					}});
 				});
 			});
+		}
+
+		if (command == "!invite") {
+			message.channel.send({embed: {
+				color: 3447003,
+				author: {
+					name: client.user.username,
+					icon_url: client.user.avatarURL
+				},
+				title: "Click here to invite me into your server!",
+				url: "https://discordapp.com/oauth2/authorize?client_id=677155607127523348&scope=bot&permissions=8",
+				description: "Please understand that this bot is still riddled with bugs",
+				fields: [{
+					name: "If the hyperlink above did not work, copy and paste the link below into your browser of choice",
+					value: "https://discordapp.com/oauth2/authorize?client_id=677155607127523348&scope=bot&permissions=8"
+				}],
+				footer: {
+			      icon_url: client.user.avatarURL,
+			      text: "I'm a good boy"
+			    }
+			}});
+		}
+
+		if (command == "!reportbug") {
+			message.channel.send({embed: {
+				color: 3447003,
+				author: {
+					name: client.user.username,
+					icon_url: client.user.avatarURL
+				},
+				title: "Click here to report a bug!",
+				url: "https://github.com/Garlicvideos/sg-radio-bot/issues/new",
+				description: "You will be required to have a Github Account",
+				fields: [{
+					name: "If the hyperlink above did not work, copy and paste the link below into your browser of choice",
+					value: "https://github.com/Garlicvideos/sg-radio-bot/issues/new"
+				}],
+				footer: {
+			      icon_url: client.user.avatarURL,
+			      text: "What did I do wrong this time?"
+			    }
+			}});
 		}
 	}
 });

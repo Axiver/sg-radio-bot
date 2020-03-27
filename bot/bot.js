@@ -489,7 +489,7 @@ async function boot() {
 	console.log(`Logged in as ${client.user.tag}`);
 	//Start auto voice channel disconnect
 	console.log("Starting auto voice channel disconnect system...");
-	setInterval(function() {autoDisconnect()}, 300000); //Activate every 5 minutes (300000ms)
+	setInterval(function() {autoDisconnect()}, 600000); //Activate every 10 minutes (300000ms)
 	console.log("Auto voice channel disconnect active!");
 }
 
@@ -838,14 +838,14 @@ client.on("message", async message => {
 					inline: true,
 				},
 				{
-					name: "Servers I am used in",
-					value: `I am currently invited to ${guild_count}`,
+					name: "I am used in",
+					value: `${guild_count} servers`,
 					inline: true,
 				},
 				{
-					name: "Voice channels I am streaming to",
-					value: `I am currently streaming to ${stream_count}`,
-					inline: true,
+					name: "I am streaming to",
+					value: `${stream_count} voice channels`,
+					inline: false,
 				}],
 				footer: {
 			      icon_url: client.user.avatarURL,

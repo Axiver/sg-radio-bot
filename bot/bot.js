@@ -50,7 +50,6 @@ function playStream(message, stationStream, station) {
 		let index = radioCache.findIndex(data => data.station == station);
 		if (index > -1) {
 			//An active stream has been found
-			console.log("I found a active stream!");
 			var broadcast = radioCache[index]['broadcast'];
 		} else {
 			//There is no active stream. Create one.
@@ -58,15 +57,12 @@ function playStream(message, stationStream, station) {
 			let json = {"station": station, "broadcast": client.createVoiceBroadcast()};
 			//Push the newly created broadcast to the array
 			index = radioCache.push(json);
-			console.log(index-1);
-			console.log(radioCache);
 			var broadcast = radioCache[index-1]['broadcast'];
 			//Get stream from radio station and blast it into the broadcast
 			const dispatcher = broadcast.playArbitraryInput(stationStream);
 		}
 		//Join the voice channel and play the radio stream
 		message.member.voiceChannel.join().then(connection => {
-			console.log("Connected and playing broadcast");
 			connection.playBroadcast(broadcast);
 		});
 		resolve();
@@ -95,6 +91,24 @@ function endStream(message) {
 				station = streams[i].name;
 				//Remove the entry from the array
 				streams.splice(i, 1);
+			}
+		}
+		//Checks if anyone else is listening to the radio stream
+		for (i = 0; i < streams.length; i++) {
+			//Checks if the station is being listened by others
+			if (streams[i].name != station && i == streams.length-1) {
+				//The guild is not listening to the station and they are the last in the array
+				//Searches through radioCache array to find the index of the station
+				let index = radioCache.findIndex(data => data.station == station);
+				//Remove the radio stream from the radioCache array
+				radioCache.splice(index, 1);
+			} else if (streams[i].name == station) {
+				//The guild is listening to the station
+				i = streams.length + 1; //Breaks the loop
+			} else if (streams.length == 0) {
+				//No one is listening anymore, clear everything.
+				radioCache = [];
+				streams = [];
 			}
 		}
 		resolve();
@@ -205,7 +219,6 @@ function determineSongInfoStream(message) {
 			let guildID = message.guild.id;
 			let streamInfo = await getStream(guildID);
 			station = streamInfo.name;
-			console.log(streamInfo);
 			if (station == "") {
 				message.channel.send("There is no radio station playing at the moment");
 				return;
@@ -331,12 +344,9 @@ function parseLyrics(lyrics) {
 				for (i = 1; i < lyrics.length; i++) {
 					//Format section title so that '[' and ']' are added back into it
 					let sectionTitle = `Section ${i}`;
-					console.log(sectionTitle);
 					let lyricSection = {"name": sectionTitle, "value": lyrics[i]};
-					console.log(lyricSection);
 					formatted.push(lyricSection);
 				}
-				console.log(lyrics);
 			} else {
 				//Loop through the array section by section (2 elements at a time)
 				for (i = 1; i < result.length; i++) {
@@ -408,28 +418,36 @@ function getStream(guildID) {
 //Updates stream information for the current guild
 function updateStream(guildID, station) {
 	return new Promise(async (resolve, reject) => {
-		console.log("updating stream!");
 		//Loops through the streams array to search for this guildID
-		console.log(streams);
-		console.log(streams.length);
 		let json = {"guild": guildID, "name": station};
-		console.log(json);
 		if (streams.find(item => item.guild == guildID)) {
 			//The guildid is in the array
 			//Find the index of the guildid
 			let index = streams.findIndex(stream => stream.guild == guildID);
-			console.log(index);
-			console.log('i really shouldnt be here');
+			let oldStation = streams[index].name;
 			//Current guild had a previous stream. Update the name of the station being streamed to the current one.
 			streams[index].name = station;
+			//Checks if anyone else is listening to the previous radio stream
+			for (i = 0; i < streams.length; i++) {
+				//Checks if the station is being listened by others
+				if (streams[i].name != oldStation && i == streams.length-1) {
+					//No one else is listening to the radio stream
+					//Searches through radioCache array to find the index of the station
+					let index = radioCache.findIndex(data => data.station == oldStation);
+					//TODO: Switching stations does not remove ununsed radio streams b
+					//Remove the radio stream from the radioCache array
+					radioCache.splice(index, 1);
+				} else if (streams[i].name == oldStation) {
+					//Someone else is listening to the radio stream
+					i = streams.length + 1; //Breaks the loop
+				}
+			}
 		} else {
 			//It is not in the array
 			//The guildID was not present in the streams array
 			//Push the new entry into the array
 			let json = {"guild": guildID, "name": station};
 			streams.push(json);
-			console.log("I should be heree");
-			console.log(json);
 		}
 		resolve();
 	});
@@ -472,11 +490,8 @@ client.on("message", async message => {
 			let station = command.split(" ")[1];
 			//Get the guild id of the current discord server
 			let guildID = message.guild.id;
-			console.log(guildID);
-			console.log("what the fuck");
 			//Get the stream info of the current guild
 			let streamInfo = await getStream(guildID);
-			console.log(streamInfo);
 			//Checks if the current station is the same as the one the user selected
 			if (streamInfo.name !== station) {
 				//Index stationlist array to see if the radio station exists
@@ -487,7 +502,6 @@ client.on("message", async message => {
 				}
 				//Checks if the guild has a ongoing radio stream
 				if (streamInfo.name != null) {
-					console.log("im not meant to be here");
 					//Server has a ongoing stream
 					//Switches from one station to another
 					await playStream(message, stream, station);
@@ -496,7 +510,6 @@ client.on("message", async message => {
 					await updateStream(guildID, station);
 					return;
 				} else {
-					console.log("ok im here");
 					//Server does not have an ongoing stream
 					//Play selected radio stream
 					await playStream(message, stream, station);
@@ -728,8 +741,6 @@ client.on("message", async message => {
 					}
 					//Stops the message loading animation
 					await clearInterval(animation);
-					console.log(lyrics);
-					console.log(lyrics.length);
 					tempMessage.edit({embed: {
 						color: 3447003,
 						author: {
@@ -753,7 +764,7 @@ client.on("message", async message => {
 
 		if (command == "!invite") {
 			message.channel.send({embed: {
-				color: 3447003,
+				color: 2399661,
 				author: {
 					name: client.user.username,
 					icon_url: client.user.avatarURL
@@ -774,7 +785,7 @@ client.on("message", async message => {
 
 		if (command == "!reportbug") {
 			message.channel.send({embed: {
-				color: 3447003,
+				color: 2399661,
 				author: {
 					name: client.user.username,
 					icon_url: client.user.avatarURL
@@ -792,7 +803,16 @@ client.on("message", async message => {
 			    }
 			}});
 		}
-	}
+
+		if (command == "!bugfix") {
+			console.log("Here is the radioCache:");
+			console.log(radioCache);
+			console.log("--------------------------------------------------------------------------");
+			console.log("Here is the stream clients list:");
+			console.log(streams);
+			console.log("--------------------------------------------------------------------------");
+		}
+	}  
 });
 
 boot();

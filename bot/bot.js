@@ -17,11 +17,12 @@ var stationlist = [];
 //-- Classes --//
 
 //Radio station
-function station(name, stream, info1, info2) {
+function station(name, stream, info1, info2, language) {
 	this.name = name;
 	this.stream = stream;
 	this.mainInfo = info1;
 	this.secondaryInfo = info2;
+	this.language = language;
 }
 
 //-- Functions --//
@@ -198,15 +199,23 @@ function backupSongInfo(result, secondInfoStream) {
 		//Make request to TuneIn endpoint
 		let data = await requestURL(secondInfoStream);
 		data = JSON.parse(data);
-		//Get album art URL
-		result.albumArt = data.Secondary.Image;
+		//Some radio stations do not provide info for album art and subtitle
+		//TODO: Manually find album art from google images (Radio station APIs for album art are unreliable anyways)
+		if (data.Secondary == undefined) {
+			//Sets a grey discord logo as the album art
+			result.albumArt = "https://www.pngfind.com/pngs/m/118-1187431_about-me-171-the-armchair-radical-red-discord.png";
+		} else {
+			//Get album art URL
+			result.albumArt = data.Secondary.Image;
+			//Gets the current subtitle of the station
+			result.subTitle = data.Secondary.Subtitle;
+		}
+		let language = result.language;
 		//Gets slogan of selected station
 		result.slogan = data.Primary.Subtitle;
-		//Gets the current subtitle of the station
-		result.subTitle = data.Secondary.Subtitle;
-		if (result.subTitle === "Kiss92" || result.subTitle === "ONE FM 91.3") {
+		if (language == "english") {
 			result.subTitle = "Song Info";
-		} else if (result.subTitle === "Yes 93.3 FM") {
+		} else if (language == "chinese") {
 			result.subTitle = "歌曲信息";
 		} else {
 			result.title = "-";
@@ -237,6 +246,7 @@ function determineSongInfoStream(message) {
 			if (radioStation.name == station) {
 				data.infoStream = radioStation.mainInfo;
 				data.secondInfoStream = radioStation.secondaryInfo;
+				data.language = radioStation.language;
 			}
 		});
 		//Checks if the json is still empty
@@ -265,6 +275,8 @@ function getSongInfo(message) {
 		data = await XMLtoJSON(data);
 		//Read JSON
 		let result = await firstSongInfo(data);
+		//Set the language of the radio station
+		result.language = station.language;
 		//Get more info on the current song
 		result = await backupSongInfo(result, station.secondInfoStream);
 		resolve(result);
@@ -280,7 +292,7 @@ function loadRadio() {
 		var i = 0;
 		radioList.forEach(radioStation => {
 			//Update stations array with each station read from radioList by initialising a new class
-			let radioTemp = new station(radioStation.name, radioStation.stream, radioStation.mainInfo, radioStation.secondaryInfo);
+			let radioTemp = new station(radioStation.name, radioStation.stream, radioStation.mainInfo, radioStation.secondaryInfo, radioStation.language);
 			stationlist[i] = radioTemp;
 			i++;
 		});
@@ -306,7 +318,7 @@ async function addStation(message) {
 	//Removes !addstation
 	let command = message.content.split(" ").splice(1, 4);
 	//Perform check
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < 5; i++) {
 		let element = command[i];
 		//Checks if the URL or stream name is not present
 		if (element == undefined) {
@@ -315,6 +327,9 @@ async function addStation(message) {
 				message.channel.send("The stream name and URL are required");
 				//Abort
 				return;
+			} else if (i == 4) {
+				//Sets the language default to english
+				command[i] = "english";
 			} else if (i > 1) {
 				//Sets the streaminfo urls as "-"
 				command[i] = "-";
@@ -322,7 +337,7 @@ async function addStation(message) {
 		}
 	};
 	//Create a new station object
-	let radioStation = new station(command[0], command[1], command[2], command[3]);
+	let radioStation = new station(command[0], command[1], command[2], command[3], command[4]);
 	//Update stationlist with new station
 	stationlist[stationlist.length] = radioStation;
 	//Update stations.json with new stationlist
@@ -352,6 +367,10 @@ function parseLyrics(lyrics) {
 				for (i = 1; i < lyrics.length; i++) {
 					//Format section title so that '[' and ']' are added back into it
 					let sectionTitle = `Section ${i}`;
+					//Check that the lyrics for each section is not undefined
+					if (lyrics[i] == null || lyrics[i].includes("\n")) {
+						lyrics[i] = "-";
+					}
 					let lyricSection = {"name": sectionTitle, "value": lyrics[i]};
 					formatted.push(lyricSection);
 				}
@@ -362,6 +381,10 @@ function parseLyrics(lyrics) {
 					let sectionTitle = '['+result[i]+']';
 					//Increase the value of i again to access the lyrics for that section
 					i++;
+					//Check that the lyrics for each section is not undefined
+					if (result[i] == null || result[i] == "\n\n") {
+						result[i] = "-";
+					}
 					let lyricSection = {"name": sectionTitle, "value": result[i]};
 					formatted.push(lyricSection);
 				}

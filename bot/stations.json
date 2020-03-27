@@ -1,1 +1,39 @@
-{"stations":[{"name":"kiss92","stream":"http://playerservices.streamtheworld.com/api/livestream-redirect/KISS_92AAC.aac?tdtok=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiIsImtpZCI6ImZTeXA4In0.eyJpc3MiOiJ0aXNydiIsInN1YiI6IjIxMDY0IiwiaWF0IjoxNTgxNTE0MTQ4LCJ0ZC1yZWciOmZhbHNlfQ.k8L5xHd8S01FJ9a9QVxd8A48Eli9O_V9N89aiKkli48","mainInfo":"https://np.tritondigital.com/public/nowplaying?mountName=KISS_92AAC&numberToFetch=1&eventType=track&request.preventCache=1581742131922","secondaryInfo":"https://feed.tunein.com/profiles/s180099/nowPlaying?token=eyJwIjpmYWxzZSwidCI6IjIwMjAtMDItMTdUMTA6MjE6NDMuNzI2MDE0N1oifQ&itemToken=BgUFAAEAAQABAAEAb28Bg78CAAEFAAA&formats=mp3,aac,ogg,flash,html,hls&serial=7ba551c5-cece-424f-aceb-1be5e3c5062c&partnerId=RadioTime&version=3.8&itemUrlScheme=secure&reqAttempt=1"},{"name":"yes933","stream":"http://playerservices.streamtheworld.com/api/livestream-redirect/YES933_PREM.aac?tdtok=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiIsImtpZCI6ImZTeXA4In0.eyJpc3MiOiJ0aXNydiIsInN1YiI6IjIxMDY0IiwiaWF0IjoxNTgxOTQwNzg2LCJ0ZC1yZWciOmZhbHNlfQ.1hYK0m1_6eSKv_ZqT5uPmEboyuAEEQud0jOVemLBk_M","mainInfo":"https://np.tritondigital.com/public/nowplaying?mountName=YES933_PREM&numberToFetch=1&eventType=track&request.preventCache=1581742131922","secondaryInfo":"https://feed.tunein.com/profiles/s25609/nowPlaying?token=eyJwIjpmYWxzZSwidCI6IjIwMjAtMDItMTdUMTA6MjE6NDMuNzI2MDE0N1oifQ&itemToken=BgUFAAEAAQABAAEAb28Bg78CAAEFAAA&formats=mp3,aac,ogg,flash,html,hls&serial=7ba551c5-cece-424f-aceb-1be5e3c5062c&partnerId=RadioTime&version=3.8&itemUrlScheme=secure&reqAttempt=1"},{"name":"91.3","stream":"https://20673.live.streamtheworld.com/ONE_FM_913AAC.aac?dist=sphradio-web&tdsdk=js-2.9&pname=TDSdk&pversion=2.9&banners=none&sbmid=8300cec7-e641-4fd2-b1e5-3399cb4db5b0","mainInfo":"https://np.tritondigital.com/public/nowplaying?mountName=ONE_FM_913&numberToFetch=1&eventType=track&request.preventCache=1581742131922","secondaryInfo":"https://feed.tunein.com/profiles/s14767/nowPlaying?token=eyJwIjpmYWxzZSwidCI6IjIwMjAtMDItMjhUMDg6MjM6MTguODU3ODgyM1oifQ&itemToken=BgUFAAEAAQABAAEAb28BrzkAAAEFAAA&formats=mp3,aac,ogg,flash,html,hls&serial=7ba551c5-cece-424f-aceb-1be5e3c5062c&partnerId=RadioTime&version=3.84&itemUrlScheme=secure&reqAttempt=1"},{"name":"95.8","stream":"https://playerservices.streamtheworld.com/api/livestream-redirect/capital958fmaac.aac?dist=radiosingapore","mainInfo":"-","secondaryInfo":"-"}]}
+{
+    "stations": [
+        {
+            "name": "kiss92",
+            "stream": "http://playerservices.streamtheworld.com/api/livestream-redirect/KISS_92AAC.aac?tdtok=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiIsImtpZCI6ImZTeXA4In0.eyJpc3MiOiJ0aXNydiIsInN1YiI6IjIxMDY0IiwiaWF0IjoxNTgxNTE0MTQ4LCJ0ZC1yZWciOmZhbHNlfQ.k8L5xHd8S01FJ9a9QVxd8A48Eli9O_V9N89aiKkli48",
+            "mainInfo": "https://np.tritondigital.com/public/nowplaying?mountName=KISS_92AAC&numberToFetch=1&eventType=track&request.preventCache=1581742131922",
+            "secondaryInfo": "https://feed.tunein.com/profiles/s180099/nowPlaying?token=eyJwIjpmYWxzZSwidCI6IjIwMjAtMDItMTdUMTA6MjE6NDMuNzI2MDE0N1oifQ&itemToken=BgUFAAEAAQABAAEAb28Bg78CAAEFAAA&formats=mp3,aac,ogg,flash,html,hls&serial=7ba551c5-cece-424f-aceb-1be5e3c5062c&partnerId=RadioTime&version=3.8&itemUrlScheme=secure&reqAttempt=1",
+        	"language": "english"
+        },
+        {
+            "name": "yes933",
+            "stream": "http://playerservices.streamtheworld.com/api/livestream-redirect/YES933_PREM.aac?tdtok=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiIsImtpZCI6ImZTeXA4In0.eyJpc3MiOiJ0aXNydiIsInN1YiI6IjIxMDY0IiwiaWF0IjoxNTgxOTQwNzg2LCJ0ZC1yZWciOmZhbHNlfQ.1hYK0m1_6eSKv_ZqT5uPmEboyuAEEQud0jOVemLBk_M",
+            "mainInfo": "https://np.tritondigital.com/public/nowplaying?mountName=YES933_PREM&numberToFetch=1&eventType=track&request.preventCache=1581742131922",
+            "secondaryInfo": "https://feed.tunein.com/profiles/s25609/nowPlaying?token=eyJwIjpmYWxzZSwidCI6IjIwMjAtMDItMTdUMTA6MjE6NDMuNzI2MDE0N1oifQ&itemToken=BgUFAAEAAQABAAEAb28Bg78CAAEFAAA&formats=mp3,aac,ogg,flash,html,hls&serial=7ba551c5-cece-424f-aceb-1be5e3c5062c&partnerId=RadioTime&version=3.8&itemUrlScheme=secure&reqAttempt=1",
+            "language": "chinese"
+        },
+        {
+            "name": "91.3",
+            "stream": "https://20673.live.streamtheworld.com/ONE_FM_913AAC.aac?dist=sphradio-web&tdsdk=js-2.9&pname=TDSdk&pversion=2.9&banners=none&sbmid=8300cec7-e641-4fd2-b1e5-3399cb4db5b0",
+            "mainInfo": "https://np.tritondigital.com/public/nowplaying?mountName=ONE_FM_913&numberToFetch=1&eventType=track&request.preventCache=1581742131922",
+            "secondaryInfo": "https://feed.tunein.com/profiles/s14767/nowPlaying?token=eyJwIjpmYWxzZSwidCI6IjIwMjAtMDItMjhUMDg6MjM6MTguODU3ODgyM1oifQ&itemToken=BgUFAAEAAQABAAEAb28BrzkAAAEFAAA&formats=mp3,aac,ogg,flash,html,hls&serial=7ba551c5-cece-424f-aceb-1be5e3c5062c&partnerId=RadioTime&version=3.84&itemUrlScheme=secure&reqAttempt=1",
+        	"language": "english"
+        },
+        {
+            "name": "95.8",
+            "stream": "https://playerservices.streamtheworld.com/api/livestream-redirect/capital958fmaac.aac?dist=radiosingapore",
+            "mainInfo": "-",
+            "secondaryInfo": "-",
+            "language": "chinese"
+        },
+        {
+            "name": "class95",
+            "stream": "https://19183.live.streamtheworld.com/CLASS95_PREM.aac?dist=mpl&tdsdk=js-2.9&pname=tdsdk&pversion=2.9&banners=300x250%2c728x90&sbmid=e3496b3f-1f6d-43ff-d5b5-2b23bc4e9b32",
+            "mainInfo": "https://np.tritondigital.com/public/nowplaying?mountName=CLASS95_PREM&numberToFetch=1&eventType=track&request.preventCache=1581742131922",
+            "secondaryInfo": "https://feed.tunein.com/profiles/s25599/nowPlaying?token=eyJwIjpmYWxzZSwidCI6IjIwMjAtMDItMTdUMTA6MjE6NDMuNzI2MDE0N1oifQ&itemToken=BgUFAAEAAQABAAEAb28Bg78CAAEFAAA&formats=mp3,aac,ogg,flash,html,hls&serial=7ba551c5-cece-424f-aceb-1be5e3c5062c&partnerId=RadioTime&version=3.8&itemUrlScheme=secure&reqAttempt=1",
+            "language": "english"
+        }
+    ]
+}

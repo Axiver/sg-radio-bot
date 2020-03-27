@@ -100,33 +100,23 @@ function endStream(message) {
 
 //Clears the radioCache and streams array
 function clearCache(station) {
-	console.log("Client list: ");
-	console.log(streams);
-	console.log("RadioCache: ");
-	console.log(radioCache);
-	console.log("Total length of client list: " + streams.length);
-	console.log(streams.length == 0);
 	//Checks if anyone else is listening to the radio stream
 	for (i = 0; i < streams.length; i++) {
-		console.log(i);
 		//Checks if the station is being listened to by others
 		if (streams[i].name != station && i == streams.length-1) {
 			//The guild is not listening to the station and they are the last in the array
 			//Searches through radioCache array to find the index of the station
 			let index = radioCache.findIndex(data => data.station == station);
-			console.log("Index of " + station + " is " + index);
 			//Remove the radio stream from the radioCache array
 			radioCache.splice(index, 1);
 		} else if (streams[i].name == station) {
-			console.log("Someone is listening, breaking loop");
 			//The guild is listening to the station
 			i = streams.length + 1; //Breaks the loop
 		}
 	}
-	
+
 	//Checks if there are any listeners
 	if (streams.length == 0) {
-		console.log("No one is listening");
 		//No one is listening anymore, clear everything.
 		radioCache = [];
 		streams = [];
@@ -434,8 +424,10 @@ function getStream(guildID) {
 }
 
 //Updates stream information for the current guild
-function updateStream(guildID, station) {
+function updateStream(guildID, station, message) {
 	return new Promise(async (resolve, reject) => {
+		//Get the channel of the message that the user sent
+		let channel = message.channel;
 		//Loops through the streams array to search for this guildID
 		let json = {"guild": guildID, "name": station};
 		if (streams.find(item => item.guild == guildID)) {
@@ -445,16 +437,44 @@ function updateStream(guildID, station) {
 			let oldStation = streams[index].name;
 			//Current guild had a previous stream. Update the name of the station being streamed to the current one.
 			streams[index].name = station;
+			//Update the text channel to the latest one
+			streams[index].channel = channel;
 			clearCache(oldStation);
 		} else {
-			//It is not in the array
 			//The guildID was not present in the streams array
 			//Push the new entry into the array
-			let json = {"guild": guildID, "name": station};
+			let json = {"guild": guildID, "name": station, "channel": channel};
 			streams.push(json);
 		}
 		resolve();
 	});
+}
+
+//Automatically disconnects the bot from voicechannels that have no other users connected for too long
+function autoDisconnect() {
+	//Loop through every connection that the bot is in
+	for (const connection of client.voiceConnections.values()) {
+		//Get the number of clients connected to the selected voice channel
+	  	let listeners = connection.channel.members.size;
+	  	//If the bot is the only one in the voice channel
+	  	if (listeners == 1) {
+	  		//Leave the voice channel
+			connection.channel.leave();
+			//Send a message to the guild
+			let guildID = connection.channel.guild.id;
+			//Find the index of the guildid
+			let index = streams.findIndex(stream => stream.guild == guildID);
+			//Bind some variables
+			let station = streams[index].name;
+			let channel = streams[index].channel;
+			//Remove the guild from the streams array
+			streams.splice(index, 1);
+			//Clear cache for the station the guild was listening to
+			clearCache(station);
+			//Retrieve and send a message to the last text channel the bot was command to !play in
+			channel.send("I've automatically left the voice channel as no one was present to listen to me :c");
+	  	}
+	}
 }
 
 //Boot sequence for the bot
@@ -467,6 +487,10 @@ async function boot() {
 	console.log("Logging in to discord...");
 	await client.login(config.token);
 	console.log(`Logged in as ${client.user.tag}`);
+	//Start auto voice channel disconnect
+	console.log("Starting auto voice channel disconnect system...");
+	setInterval(function() {autoDisconnect()}, 300000); //Activate every 5 minutes (300000ms)
+	console.log("Auto voice channel disconnect active!");
 }
 
 //-- Main bot --//
@@ -511,14 +535,14 @@ client.on("message", async message => {
 					await playStream(message, stream, station);
 					message.channel.send("Switched over from " + capitalizeFirstLetter(streamInfo.name) + " to " + capitalizeFirstLetter(station));
 					//Set current station
-					await updateStream(guildID, station);
+					await updateStream(guildID, station, message);
 					return;
 				} else {
 					//Server does not have an ongoing stream
 					//Play selected radio stream
 					await playStream(message, stream, station);
 					//Set current station
-					await updateStream(guildID, station);
+					await updateStream(guildID, station, message);
 					return;
 				}
 			} else {
@@ -529,7 +553,7 @@ client.on("message", async message => {
 					//Play selected radio stream
 					await playStream(message, stream, station);
 					//Set current station
-					await updateStream(guildID, station);
+					await updateStream(guildID, station, message);
 				} else {
 					message.channel.send(capitalizeFirstLetter(station) + " is already playing!");
 				}
@@ -674,8 +698,8 @@ client.on("message", async message => {
 					value: "Sends the invite link for this bot to chat",
 				},
 				{
-					name: "!reportbug",
-					value: "Sends the URL for bug report submission",
+					name: "!info",
+					value: "Sends information on the bot, including the link for reporting bugs",
 				}],
 				footer: {
 			      icon_url: client.user.avatarURL,
@@ -767,6 +791,9 @@ client.on("message", async message => {
 		}
 
 		if (command == "!invite") {
+			//Generate a invite link
+			let inviteLink = client.generateInvite(['SEND_MESSAGES', 'VIEW_CHANNEL', 'EMBED_LINKS', 'READ_MESSAGE_HISTORY', 'CONNECT', 'SPEAK']);
+			//Send the invite link
 			message.channel.send({embed: {
 				color: 2399661,
 				author: {
@@ -774,11 +801,11 @@ client.on("message", async message => {
 					icon_url: client.user.avatarURL
 				},
 				title: "Click here to invite me into your server!",
-				url: "https://discordapp.com/oauth2/authorize?client_id=677155607127523348&scope=bot&permissions=8",
+				url: inviteLink,
 				description: "Please understand that this bot is still riddled with bugs",
 				fields: [{
 					name: "If the hyperlink above did not work, copy and paste the link below into your browser of choice",
-					value: "https://discordapp.com/oauth2/authorize?client_id=677155607127523348&scope=bot&permissions=8"
+					value: inviteLink
 				}],
 				footer: {
 			      icon_url: client.user.avatarURL,
@@ -787,19 +814,38 @@ client.on("message", async message => {
 			}});
 		}
 
-		if (command == "!reportbug") {
+		if (command == "!info") {
+			//Calculates the information
+			let guild_count = client.guilds.size; //Guild count
+			let stream_count = 0; //Active voice connections
+			//Calculates the number of total active voice connections
+			for (const connection of client.voiceConnections.values()) {
+			  	stream_count++;
+			}
+			//Sends the information to the channel
 			message.channel.send({embed: {
 				color: 2399661,
 				author: {
 					name: client.user.username,
 					icon_url: client.user.avatarURL
 				},
-				title: "Click here to report a bug!",
-				url: "https://github.com/Garlicvideos/sg-radio-bot/issues/new",
-				description: "You will be required to have a Github Account",
+				title: "Bot information",
+				url: "https://github.com/Garlicvideos/sg-radio-bot",
+				description: "Summarised information on the bot",
 				fields: [{
-					name: "If the hyperlink above did not work, copy and paste the link below into your browser of choice",
-					value: "https://github.com/Garlicvideos/sg-radio-bot/issues/new"
+					name: "Bug reporting (You need a Github account)",
+					value: "[Click here to report bugs on this bot](https://github.com/Garlicvideos/sg-radio-bot/issues/new)",
+					inline: true,
+				},
+				{
+					name: "Servers I am used in",
+					value: `I am currently invited to ${guild_count}`,
+					inline: true,
+				},
+				{
+					name: "Voice channels I am streaming to",
+					value: `I am currently streaming to ${stream_count}`,
+					inline: true,
 				}],
 				footer: {
 			      icon_url: client.user.avatarURL,
@@ -808,13 +854,14 @@ client.on("message", async message => {
 			}});
 		}
 
-		if (command == "!bugfix") {
+		if (command == "!bugfix" && message.member.id == "263615689854681090") {
 			console.log("Here is the radioCache:");
 			console.log(radioCache);
 			console.log("--------------------------------------------------------------------------");
 			console.log("Here is the stream clients list:");
 			console.log(streams);
 			console.log("--------------------------------------------------------------------------");
+			autoDisconnect();
 		}
 	}  
 });

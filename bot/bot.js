@@ -93,26 +93,44 @@ function endStream(message) {
 				streams.splice(i, 1);
 			}
 		}
-		//Checks if anyone else is listening to the radio stream
-		for (i = 0; i < streams.length; i++) {
-			//Checks if the station is being listened by others
-			if (streams[i].name != station && i == streams.length-1) {
-				//The guild is not listening to the station and they are the last in the array
-				//Searches through radioCache array to find the index of the station
-				let index = radioCache.findIndex(data => data.station == station);
-				//Remove the radio stream from the radioCache array
-				radioCache.splice(index, 1);
-			} else if (streams[i].name == station) {
-				//The guild is listening to the station
-				i = streams.length + 1; //Breaks the loop
-			} else if (streams.length == 0) {
-				//No one is listening anymore, clear everything.
-				radioCache = [];
-				streams = [];
-			}
-		}
+		clearCache(station);
 		resolve();
 	});
+}
+
+//Clears the radioCache and streams array
+function clearCache(station) {
+	console.log("Client list: ");
+	console.log(streams);
+	console.log("RadioCache: ");
+	console.log(radioCache);
+	console.log("Total length of client list: " + streams.length);
+	console.log(streams.length == 0);
+	//Checks if anyone else is listening to the radio stream
+	for (i = 0; i < streams.length; i++) {
+		console.log(i);
+		//Checks if the station is being listened to by others
+		if (streams[i].name != station && i == streams.length-1) {
+			//The guild is not listening to the station and they are the last in the array
+			//Searches through radioCache array to find the index of the station
+			let index = radioCache.findIndex(data => data.station == station);
+			console.log("Index of " + station + " is " + index);
+			//Remove the radio stream from the radioCache array
+			radioCache.splice(index, 1);
+		} else if (streams[i].name == station) {
+			console.log("Someone is listening, breaking loop");
+			//The guild is listening to the station
+			i = streams.length + 1; //Breaks the loop
+		}
+	}
+	
+	//Checks if there are any listeners
+	if (streams.length == 0) {
+		console.log("No one is listening");
+		//No one is listening anymore, clear everything.
+		radioCache = [];
+		streams = [];
+	}
 }
 
 //Sends a https request to a endpoint
@@ -427,21 +445,7 @@ function updateStream(guildID, station) {
 			let oldStation = streams[index].name;
 			//Current guild had a previous stream. Update the name of the station being streamed to the current one.
 			streams[index].name = station;
-			//Checks if anyone else is listening to the previous radio stream
-			for (i = 0; i < streams.length; i++) {
-				//Checks if the station is being listened by others
-				if (streams[i].name != oldStation && i == streams.length-1) {
-					//No one else is listening to the radio stream
-					//Searches through radioCache array to find the index of the station
-					let index = radioCache.findIndex(data => data.station == oldStation);
-					//TODO: Switching stations does not remove ununsed radio streams b
-					//Remove the radio stream from the radioCache array
-					radioCache.splice(index, 1);
-				} else if (streams[i].name == oldStation) {
-					//Someone else is listening to the radio stream
-					i = streams.length + 1; //Breaks the loop
-				}
-			}
+			clearCache(oldStation);
 		} else {
 			//It is not in the array
 			//The guildID was not present in the streams array

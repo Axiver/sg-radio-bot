@@ -201,18 +201,18 @@ function backupSongInfo(result, secondInfoStream) {
 		data = JSON.parse(data);
 		//Some radio stations do not provide info for album art and subtitle
 		//TODO: Manually find album art from google images (Radio station APIs for album art are unreliable anyways)
-		if (data.Secondary == undefined) {
-			//Sets a grey discord logo as the album art
-			result.albumArt = "https://www.pngfind.com/pngs/m/118-1187431_about-me-171-the-armchair-radical-red-discord.png";
-		} else {
+		if (data.Secondary != undefined) {
 			//Get album art URL
 			result.albumArt = data.Secondary.Image;
-			//Gets the current subtitle of the station
-			result.subTitle = data.Secondary.Subtitle;
 		}
 		let language = result.language;
 		//Gets slogan of selected station
 		result.slogan = data.Primary.Subtitle;
+		//Sets album logo to default if API returned nothing for it
+		if (result.albumArt == undefined) {
+			//Sets a grey discord logo as the album art
+			result.albumArt = "https://www.pngfind.com/pngs/m/118-1187431_about-me-171-the-armchair-radical-red-discord.png";
+		}
 		if (language == "english") {
 			result.subTitle = "Song Info";
 		} else if (language == "chinese") {
@@ -368,7 +368,7 @@ function parseLyrics(lyrics) {
 					//Format section title so that '[' and ']' are added back into it
 					let sectionTitle = `Section ${i}`;
 					//Check that the lyrics for each section is not undefined
-					if (lyrics[i] == null || lyrics[i].includes("\n")) {
+					if (lyrics[i] == null || lyrics[i] == ("\n\n")) {
 						lyrics[i] = "-";
 					}
 					let lyricSection = {"name": sectionTitle, "value": lyrics[i]};
@@ -390,7 +390,7 @@ function parseLyrics(lyrics) {
 				}
 			}
 		} else {
-			formatted[0] = {"name": "-", "value": "-"};
+			formatted[0] = {"name": "No lyrics found", "value": "-"};
 		}
 		resolve(formatted);
 	});

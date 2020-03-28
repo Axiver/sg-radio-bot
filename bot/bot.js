@@ -382,10 +382,11 @@ function parseLyrics(lyrics) {
 					//Increase the value of i again to access the lyrics for that section
 					i++;
 					//Check that the lyrics for each section is not undefined
-					if (result[i] == null || result[i] == "\n\n") {
+					if (result[i] == null || result[i] == "\n\n" || result[i] == "") {
 						result[i] = "-";
 					}
 					let lyricSection = {"name": sectionTitle, "value": result[i]};
+					console.log(lyricSection);
 					formatted.push(lyricSection);
 				}
 			}
@@ -783,6 +784,7 @@ client.on("message", async message => {
 				};
 				//Send the request to Genius
 				genius.getLyrics(options).then(async lyrics => {
+					//genius.getSong(options);
 					//Split lyrics into sections (Verse 1, Verse 2, Chorus, etc)
 					lyrics = await parseLyrics(lyrics);
 					//Construct and send song lyrics to chat

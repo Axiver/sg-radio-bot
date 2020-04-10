@@ -209,7 +209,7 @@ function backupSongInfo(result, secondInfoStream) {
 		//Gets slogan of selected station
 		result.slogan = data.Primary.Subtitle;
 		//Sets album logo to default if API returned nothing for it
-		if (result.albumArt == undefined) {
+		if (result.albumArt == null || result.albumArt == "") {
 			//Sets a grey discord logo as the album art
 			result.albumArt = "https://www.pngfind.com/pngs/m/118-1187431_about-me-171-the-armchair-radical-red-discord.png";
 		}
@@ -358,6 +358,7 @@ function parseLyrics(lyrics) {
 		if (lyrics != null) {
 			//Split the lyrics into sections
 			let result = lyrics.split(/[\[\]]+/);
+			console.log(result);
 			//Check if the lyrics have section titles (Genius is inconsistent af)
 			if (result.length <= 1) {
 				//Lyrics do not have section titles
@@ -368,7 +369,7 @@ function parseLyrics(lyrics) {
 					//Format section title so that '[' and ']' are added back into it
 					let sectionTitle = `Section ${i}`;
 					//Check that the lyrics for each section is not undefined
-					if (lyrics[i] == null || lyrics[i] == ("\n\n")) {
+					if (lyrics[i] == null || lyrics[i] == ("\n\n") || result[i] == "\n" || result[i] == "") {
 						lyrics[i] = "-";
 					}
 					let lyricSection = {"name": sectionTitle, "value": lyrics[i]};
@@ -382,11 +383,10 @@ function parseLyrics(lyrics) {
 					//Increase the value of i again to access the lyrics for that section
 					i++;
 					//Check that the lyrics for each section is not undefined
-					if (result[i] == null || result[i] == "\n\n" || result[i] == "") {
+					if (result[i] == null || result[i] == "\n\n" || result[i] == "\n" || result[i] == "") {
 						result[i] = "-";
 					}
 					let lyricSection = {"name": sectionTitle, "value": result[i]};
-					console.log(lyricSection);
 					formatted.push(lyricSection);
 				}
 			}
@@ -741,6 +741,8 @@ client.on("message", async message => {
 			//Bug fixing
 			//result.title = "LET ME LOVE YOU";
 			//result.artist = "DJ SNAKE FT. JUSTIN BIEBER";
+			//Format the artist field
+			result.artist = result.artist.split(/[FT.]+/, 1)[0];
 			//Sends a temporary message
 			message.channel.send({embed: {
 				color: 3447003,
@@ -783,8 +785,38 @@ client.on("message", async message => {
 					optimizeQuery: true
 				};
 				//Send the request to Genius
-				genius.getLyrics(options).then(async lyrics => {
-					//genius.getSong(options);
+				genius.getSong(options).then(async data => {
+					//Checks if any results were found
+					let lyrics = data.lyrics;
+					console.log(lyrics);
+					let albumArt = data.albumArt;
+					//Assign the albumArt url if it does not equal to null
+					if (albumArt != null) {
+						result.albumArt = albumArt;
+					}
+					if (lyrics == null) {
+						tempMessage.edit({embed: {
+							color: 3447003,
+							author: {
+								name: capitalizeFirstLetter(streamInfo.name),
+								icon_url: client.user.avatarURL
+							},
+							title: result.title,
+							description: result.artist,
+							thumbnail: {
+								url: result.albumArt,
+							},
+							fields: [{
+								"name": "This song is trash",
+								"value": "No lyrics were found"
+							}],
+							footer: {
+						      icon_url: client.user.avatarURL,
+						      text: "Lyrics may not be accurate. The lyric feature is still unstable."
+						    }
+						}});
+						return; //Break
+					}
 					//Split lyrics into sections (Verse 1, Verse 2, Chorus, etc)
 					lyrics = await parseLyrics(lyrics);
 					//Construct and send song lyrics to chat

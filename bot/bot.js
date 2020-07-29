@@ -849,7 +849,7 @@ client.on("message", async message => {
 
 		if (command == "!invite") {
 			//Generate a invite link
-			let inviteLink = client.generateInvite(['SEND_MESSAGES', 'VIEW_CHANNEL', 'EMBED_LINKS', 'READ_MESSAGE_HISTORY', 'CONNECT', 'SPEAK']);
+			let inviteLink = await client.generateInvite(['SEND_MESSAGES', 'VIEW_CHANNEL', 'EMBED_LINKS', 'READ_MESSAGE_HISTORY', 'CONNECT', 'SPEAK']);
 			//Send the invite link
 			message.channel.send({embed: {
 				color: 2399661,

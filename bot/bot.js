@@ -780,16 +780,16 @@ client.on("message", async message => {
 				//Configure the API request
 				let options = {
 					apiKey: config['genius-token'],
-					title: encodeURI(result.title),
-					artist: encodeURI(result.artist),
+					title: result.title,
+					artist: result.artist,
 					optimizeQuery: true
 				};
 				//Send the request to Genius
-				genius.getSong(options).then(async data => {
+				genius.getSong(options).then(async (song) => {
 					//Checks if any results were found
-					let lyrics = data.lyrics;
+					let lyrics = song.lyrics;
 					console.log(lyrics);
-					let albumArt = data.albumArt;
+					let albumArt = song.albumArt;
 					//Assign the albumArt url if it does not equal to null
 					if (albumArt != null) {
 						result.albumArt = albumArt;

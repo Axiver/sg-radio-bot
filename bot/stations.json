@@ -2,7 +2,7 @@
     "stations": [
         {
             "name": "kiss92",
-            "stream": "http://playerservices.streamtheworld.com/api/livestream-redirect/KISS_92AAC.aac?tdtok=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiIsImtpZCI6ImZTeXA4In0.eyJpc3MiOiJ0aXNydiIsInN1YiI6IjIxMDY0IiwiaWF0IjoxNTgxNTE0MTQ4LCJ0ZC1yZWciOmZhbHNlfQ.k8L5xHd8S01FJ9a9QVxd8A48Eli9O_V9N89aiKkli48",
+            "stream": "https://22253.live.streamtheworld.com/KISS_92AAC.aac?dist=sphradio-web&gdpr=0&tdsdk=js-2.9&pname=TDSdk&pversion=2.9&banners=none&sbmid=14abc86e-8595-4446-ae47-87e112e89272",
             "mainInfo": "https://np.tritondigital.com/public/nowplaying?mountName=KISS_92AAC&numberToFetch=1&eventType=track&request.preventCache=1581742131922",
             "secondaryInfo": "https://feed.tunein.com/profiles/s180099/nowPlaying?token=eyJwIjpmYWxzZSwidCI6IjIwMjAtMDItMTdUMTA6MjE6NDMuNzI2MDE0N1oifQ&itemToken=BgUFAAEAAQABAAEAb28Bg78CAAEFAAA&formats=mp3,aac,ogg,flash,html,hls&serial=7ba551c5-cece-424f-aceb-1be5e3c5062c&partnerId=RadioTime&version=3.8&itemUrlScheme=secure&reqAttempt=1",
         	"language": "english"
